@@ -1,0 +1,9 @@
+﻿  mainSistemaSolar.cpp
+C:\Users\charl\OneDrive\Escritorio\USC\sexto\COGA\2026\Entrega1_IgnacioGarbayo_CarlosHermida\SistemaSolar\SistemaSolar\SistemaSolar\mainSistemaSolar.cpp(72,23): error C2065: 'camaraActual': identificador no declarado
+C:\Users\charl\OneDrive\Escritorio\USC\sexto\COGA\2026\Entrega1_IgnacioGarbayo_CarlosHermida\SistemaSolar\SistemaSolar\SistemaSolar\mainSistemaSolar.cpp(72,37): error C2059: error de sintaxis: ';'
+C:\Users\charl\OneDrive\Escritorio\USC\sexto\COGA\2026\Entrega1_IgnacioGarbayo_CarlosHermida\SistemaSolar\SistemaSolar\SistemaSolar\mainSistemaSolar.cpp(73,25): error C2065: 'camaraActual': identificador no declarado
+C:\Users\charl\OneDrive\Escritorio\USC\sexto\COGA\2026\Entrega1_IgnacioGarbayo_CarlosHermida\SistemaSolar\SistemaSolar\SistemaSolar\mainSistemaSolar.cpp(73,39): error C2059: error de sintaxis: ';'
+C:\Users\charl\OneDrive\Escritorio\USC\sexto\COGA\2026\Entrega1_IgnacioGarbayo_CarlosHermida\SistemaSolar\SistemaSolar\SistemaSolar\mainSistemaSolar.cpp(74,25): error C2065: 'camaraActual': identificador no declarado
+C:\Users\charl\OneDrive\Escritorio\USC\sexto\COGA\2026\Entrega1_IgnacioGarbayo_CarlosHermida\SistemaSolar\SistemaSolar\SistemaSolar\mainSistemaSolar.cpp(74,39): error C2059: error de sintaxis: ';'
+C:\Users\charl\OneDrive\Escritorio\USC\sexto\COGA\2026\Entrega1_IgnacioGarbayo_CarlosHermida\SistemaSolar\SistemaSolar\SistemaSolar\mainSistemaSolar.cpp(75,25): error C2065: 'camaraActual': identificador no declarado
+C:\Users\charl\OneDrive\Escritorio\USC\sexto\COGA\2026\Entrega1_IgnacioGarbayo_CarlosHermida\SistemaSolar\SistemaSolar\SistemaSolar\mainSistemaSolar.cpp(75,40): error C2059: error de sintaxis: ';'
