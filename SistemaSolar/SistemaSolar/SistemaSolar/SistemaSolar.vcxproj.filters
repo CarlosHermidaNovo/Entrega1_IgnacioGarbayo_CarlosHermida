@@ -18,6 +18,9 @@
     <ClCompile Include="mainSistemaSolar.cpp">
       <Filter>Archivos de origen</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\Include_Lib\glad\glad.c">
+      <Filter>Archivos de origen</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="sistSolar.vert" />

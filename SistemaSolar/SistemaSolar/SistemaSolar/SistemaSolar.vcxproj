@@ -130,6 +130,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\Include_Lib\glad\glad.c" />
     <ClCompile Include="mainSistemaSolar.cpp" />
   </ItemGroup>
   <ItemGroup>

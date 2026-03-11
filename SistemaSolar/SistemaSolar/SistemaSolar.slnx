@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="SistemaSolar/SistemaSolar.vcxproj" />
+  <Project Path="SistemaSolar/SistemaSolar.vcxproj" Id="889647a4-3436-4232-afbb-b44ae177299e" />
 </Solution>
