@@ -53,11 +53,11 @@ struct Objeto {
 	int numVertices; //Numero de vertices para dibujar
 
 	//matriz para saber donde está exactamente en el espacio
-	glm::mat4 modelMatrix;
+	glm::mat4 modelMatrix;// Matriz de modelo que se actualiza cada frame con la posicion y rotacion del objeto
 
 	//Extrae la posicion (x,y,z) del objeto en este frame
 	glm::vec3 getPosicionGlobal() {
-		return glm::vec3(modelMatrix[3]);
+		return glm::vec3(modelMatrix[3]);// La posicion global del objeto se encuentra en la cuarta columna de la matriz de modelo
 
 	}
 };
@@ -252,31 +252,39 @@ int main() {
 	Objeto luna = { 2.5f, 0.0f, 100.0f, 0.0f, 50.0f, 0.3f, glm::vec3(0.8f, 0.8f, 0.8f), &tierra, esferaVAO, esferaVBO, numVerticesEsfera };
 	Objeto iss = { 1.2f, 0.0f, 300.0f, 0.0f, 0.0f,  0.1f, glm::vec3(1.0f, 1.0f, 1.0f), &tierra, esferaVAO, esferaVBO, numVerticesEsfera };
 
-	std::vector<Objeto*> objetos={&sol, &mercurio, &venus, &tierra, &marte, &jupiter, &saturno, &urano, &neptuno, &luna, &iss };
+	
+	std::vector<Objeto*> objetos = { &sol, &mercurio, &venus, &tierra, &marte, &jupiter, &saturno, &urano, &neptuno, &luna, &iss }; //Vector de punteros a objetos para facilitar la iteracion
 
-	ptrSol=&sol;
+	//Asignamos los punteros globales para las camaras
+	ptrSol = &sol;
 	ptrTierra = &tierra;
 	ptrLuna = &luna;
 	ptrMarte = &marte;
 	ptrISS = &iss;
 
+	// Bucle principal
 	while (!glfwWindowShouldClose(window)) {
+		// Calculo del deltaTime para animaciones suaves
 		float currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 
+		// Limpieza de buffers
 		glClearColor(0.01f, 0.01f, 0.05f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+		
 		glUseProgram(shaderProgram);
 
+		// Actualizamos la posicion de cada objeto
 		for (auto obj : objetos) {
 			actualizarObjeto(*obj, deltaTime);
 		}
 
-		glm::mat4 view = glm::mat4(1.0f);
-		glm::vec3 eye(0.0f), center(0.0f), up(0.0f, 1.0f, 0.0f);
+		// Configuramos la camara segun la seleccion del usuario
+		glm::mat4 view = glm::mat4(1.0f);// Matriz de vista que se actualizara segun la camara seleccionada
+		glm::vec3 eye(0.0f), center(0.0f), up(0.0f, 1.0f, 0.0f);// El vector up siempre apunta hacia arriba en el eje Y
 
+		// Dependiendo de la camara seleccionada, calculamos el vector eye (posicion de la camara) y center (punto al que mira la camara)
 		switch (camaraActual) {
 		case CAM_SOL:
 			eye = glm::vec3(0.0f, 100.0f, 120.0f);
@@ -296,20 +304,26 @@ int main() {
 			break;
 		}
 
+		// Calculamos la matriz de vista usando glm::lookAt con los vectores eye, center y up
 		view = glm::lookAt(eye, center, up);
+		// Calculamos la matriz de proyeccion usando glm::perspective con un FOV de 45 grados, aspect ratio segun el tamaño de la ventana y planos cercano y lejano adecuados para nuestro sistema solar
 		glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
 
-		glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-		glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+		// Enviamos las matrices de vista y proyeccion al shader
+		glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));// Enviamos la matriz de proyeccion al shader
+		glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));// Enviamos la matriz de vista al shader
 
+		// Dibujamos cada objeto
 		for (auto obj : objetos) {
 			dibujarObjeto(*obj, shaderProgram);
 		}
 
+		// Intercambiamos buffers y procesamos eventos
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 
+	// Limpieza de recursos
 	glDeleteVertexArrays(1, &esferaVAO);
 	glDeleteBuffers(1, &esferaVBO);
 	glDeleteVertexArrays(1, &orbitaVAO);
