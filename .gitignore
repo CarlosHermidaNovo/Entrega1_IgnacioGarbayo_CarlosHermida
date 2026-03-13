@@ -1,1 +1,9 @@
+# Visual Studio IDE
 .vs/
+
+# User-specific project settings (local paths, debugger config)
+*.vcxproj.user
+
+# Windows
+Thumbs.db
+Desktop.ini
