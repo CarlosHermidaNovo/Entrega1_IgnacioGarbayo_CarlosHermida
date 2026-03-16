@@ -13,6 +13,9 @@
 * **Órbitas Visibles:** Trazado en tiempo real de la ruta orbital de cada cuerpo celeste usando `GL_LINE_LOOP`.
 * **Cámaras Dinámicas:** Sistema de cámara espectador interactivo que permite "saltar" entre diferentes cuerpos celestes en tiempo real recalculando la matriz de Vista (`View Matrix`).
 * **Re-escalado Dinámico:** El *viewport* se ajusta automáticamente al cambiar el tamaño de la ventana de la aplicación sin deformar la relación de aspecto de los planetas.
+* **Proporciones Ajustadas:** Los valores de escalado de todos los cuerpos celestes han sido revisados para aproximarse mejor a las proporciones relativas reales (Júpiter y Saturno más grandes, planetas interiores más pequeños). Afecta únicamente a los parámetros `escalado` de cada `Objeto` en `main()`.
+* **ISS con Modelo 3D OBJ:** La Estación Espacial Internacional se renderiza usando un modelo `.obj` externo cargado en tiempo de ejecución (`iss.obj`), en lugar de la esfera genérica. Se implementó la función `cargarOBJ()` que parsea el archivo, extrae posiciones XYZ y sube la geometría a la GPU en un VAO/VBO propio. El sistema de dibujo se generalizó para que cada `Objeto` use su propio VAO y `numVertices` en lugar de los globales de la esfera, sin romper el resto de planetas.
+* **Anillos de Saturno:** Saturno incluye 4 anillos concéntricos diferenciados (C, B, A y F), aproximando los anillos reales del planeta. Cada anillo es un disco plano (`GL_TRIANGLE_STRIP`) generado proceduralmente con radio interno y externo propios, y dibujado con su color característico. Se aplica la inclinación axial real de Saturno (~27°) respecto al plano orbital. El backface culling se desactiva temporalmente durante su renderizado al tratarse de superficies planas.
 
 ---
 
