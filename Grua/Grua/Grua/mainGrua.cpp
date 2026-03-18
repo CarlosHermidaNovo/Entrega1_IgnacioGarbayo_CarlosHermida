@@ -9,7 +9,7 @@
 #include <GLFW/glfw3.h>
 #include <BibliotecasCurso/lecturaShader_0_9.h>
 
-//Librerías matemáticas
+//Librerï¿½as matemï¿½ticas
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -18,7 +18,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-// tamaño ventana
+// tamaï¿½o ventana
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
@@ -28,14 +28,14 @@ float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
 // ==========================================
-// CÁMARAS
+// Cï¿½MARAS
 // ==========================================
 enum CameraMode { CAM_TERCERA_PERSONA, CAM_PRIMERA_PERSONA, CAM_CENITAL };
 CameraMode camaraActual = CAM_TERCERA_PERSONA;
 
 
 // ==========================================
-// GEOMETRÍA 
+// GEOMETRï¿½A 
 // ==========================================
 float vertices_baldosa[] = {
 	-0.5f, 0.0f, -0.5f,
@@ -105,7 +105,7 @@ int numVerticesCubo = 36;
 // ESTRUCTURAS DE LAS PIEZAS
 // ==========================================
 struct Base {
-	glm::vec3 posicion; //Posición en el mundo (X,Y,Z)
+	glm::vec3 posicion; //Posiciï¿½n en el mundo (X,Y,Z)
 	float orientacion;	//Hacia donde mira el chasis
 	float velocidadActual;
 	float aceleracion = 10.0f;
@@ -117,20 +117,20 @@ struct Base {
 };
 
 struct Cabina {
-	float anguloGiroY; //Rotación de la cabina de la grua sobre si misma
-	glm::vec3 offset;	//Posición de enganche relativa respecto al centro del camion
+	float anguloGiroY; //Rotaciï¿½n de la cabina de la grua sobre si misma
+	glm::vec3 offset;	//Posiciï¿½n de enganche relativa respecto al centro del camion
 	glm::mat4 modelMatrix;
 };
 
 struct Articulacion {
-	float anguloElevacionZ; //Angulo para subir o bajar el brazo de la grúa
-	glm::vec3 offset;		//Posición de enganche relativa respecto a la cabina
+	float anguloElevacionZ; //Angulo para subir o bajar el brazo de la grï¿½a
+	glm::vec3 offset;		//Posiciï¿½n de enganche relativa respecto a la cabina
 	glm::mat4 modelMatrix;
 };
 
 struct Brazo {
 	float extension;	//Disstancia de estiramiento del brazo
-	glm::vec3 offset;	//Posición de enganche relativa respecto a la articulación
+	glm::vec3 offset;	//Posiciï¿½n de enganche relativa respecto a la articulaciï¿½n
 	glm::mat4 modelMatrix;
 };
 
@@ -144,7 +144,7 @@ struct GruaCamion {
 GruaCamion miGrua;
 
 // ==========================================
-// FUNCIONES DE PREPARACIÓN
+// FUNCIONES DE PREPARACIï¿½N
 // ==========================================
 void prepararSuelo() {
 	glGenVertexArrays(1, &sueloVAO);
@@ -182,7 +182,7 @@ void dibujarSuelo(GLuint shader) {
 			modelo = glm::translate(modelo, glm::vec3(x * tamanhoBaldosa, 0.0f, z * tamanhoBaldosa));
 			glUniformMatrix4fv(glGetUniformLocation(shader, "modelo"), 1, GL_FALSE, glm::value_ptr(modelo));
 
-			//Dependiendo de si es par o impar la xuma de x y z la baldosa será gris oscuro o gris claro. Buscamos el efecto tablero de ajedrez.
+			//Dependiendo de si es par o impar la xuma de x y z la baldosa serï¿½ gris oscuro o gris claro. Buscamos el efecto tablero de ajedrez.
 			glm::vec3 colorBaldosa = ((x + z) % 2 == 0) ? glm::vec3(0.3f) : glm::vec3(0.5f); 
 			glUniform3fv(glGetUniformLocation(shader, "colorObjeto"), 1, glm::value_ptr(colorBaldosa));
 
@@ -193,7 +193,7 @@ void dibujarSuelo(GLuint shader) {
 }
 
 
-//Funciones que podrían cambiarse.
+//Funciones que podrï¿½an cambiarse.
 void dibujarPieza(glm::mat4 matrizJerarquica, glm::vec3 escala, glm::vec3 color, GLuint shader) {
 	glm::mat4 modeloFinal = glm::scale(matrizJerarquica, escala);
 	glUniformMatrix4fv(glGetUniformLocation(shader, "modelo"), 1, GL_FALSE, glm::value_ptr(modeloFinal));
@@ -210,7 +210,7 @@ void dibujarGrua(GruaCamion& grua, GLuint shader) {
 }
 
 // ==========================================
-// FUNCIONES DE ACTUALIZACIÓN Y FÍSICA
+// FUNCIONES DE ACTUALIZACIï¿½N Y Fï¿½SICA
 // ==========================================
 void actualizarFisicas(GruaCamion& grua, float dt, GLFWwindow* window) {
 
@@ -218,7 +218,7 @@ void actualizarFisicas(GruaCamion& grua, float dt, GLFWwindow* window) {
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) grua.base.velocidadActual += grua.base.aceleracion * dt;
 	else if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS) grua.base.velocidadActual -= grua.base.frenado * dt;
 	else {
-		//Fricción: detiene la grua poco a poco si no se pulsa nada
+		//Fricciï¿½n: detiene la grua poco a poco si no se pulsa nada
 		if (grua.base.velocidadActual > 0.0f) {
 			grua.base.velocidadActual -= grua.base.friccion * dt;
 			if (grua.base.velocidadActual < 0.0f) grua.base.velocidadActual = 0.0f;
@@ -233,20 +233,28 @@ void actualizarFisicas(GruaCamion& grua, float dt, GLFWwindow* window) {
 	if (grua.base.velocidadActual > grua.base.velMaxima) grua.base.velocidadActual = grua.base.velMaxima;
 	if (grua.base.velocidadActual < -grua.base.velMaxima / 2.0f) grua.base.velocidadActual = -grua.base.velMaxima / 2.0f;
 
-	//2. Dirección (A/D)
-	//Para que sea realista solo se permitirá girar el vehículo si esetá en movimiento
-	if (abs(grua.base.velocidadActual) > 0.1f) {
+	//2. Direcciï¿½n (A/D)
+	//Para que sea realista solo se permitirï¿½ girar el vehï¿½culo si esetï¿½ en movimiento
+	if (fabs(grua.base.velocidadActual) > 0.1f) {
 		float direccionGiro = (grua.base.velocidadActual > 0.0f) ? 1.0f : -1.0f;
 		if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) grua.base.orientacion += grua.base.velGiro * dt * direccionGiro;
 		if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) grua.base.orientacion -= grua.base.velGiro * dt * direccionGiro;
 	}
 
-	//3. Aplicamos el movimiento a la posición global.
+	//3. Aplicamos el movimiento a la posiciï¿½n global.
 	float radianes = glm::radians(grua.base.orientacion);
 	grua.base.posicion.x += sin(radianes) * grua.base.velocidadActual * dt;
 	grua.base.posicion.z += cos(radianes) * grua.base.velocidadActual * dt;
 
-	// Controles adicionales de la grúa (Quizas es mejor darle otros valores para que sea más intuitivo (Q,E giro de cabina / R,F angulo de elevación / T,G extensión brazo).
+	//4. Limitamos la posiciï¿½n al ï¿½rea del suelo (cuadrï¿½cula de 41x41 baldosas, de -20 a +20).
+	//Se usa un margen de seguridad para que el vehï¿½culo no sobresalga del borde.
+	const float LIMITE_SUELO = 18.5f;
+	if (grua.base.posicion.x > LIMITE_SUELO)  { grua.base.posicion.x = LIMITE_SUELO;  grua.base.velocidadActual = 0.0f; }
+	if (grua.base.posicion.x < -LIMITE_SUELO) { grua.base.posicion.x = -LIMITE_SUELO; grua.base.velocidadActual = 0.0f; }
+	if (grua.base.posicion.z > LIMITE_SUELO)  { grua.base.posicion.z = LIMITE_SUELO;  grua.base.velocidadActual = 0.0f; }
+	if (grua.base.posicion.z < -LIMITE_SUELO) { grua.base.posicion.z = -LIMITE_SUELO; grua.base.velocidadActual = 0.0f; }
+
+	// Controles adicionales de la grï¿½a (Quizas es mejor darle otros valores para que sea mï¿½s intuitivo (Q,E giro de cabina / R,F angulo de elevaciï¿½n / T,G extensiï¿½n brazo).
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) grua.cabina.anguloGiroY += 45.0f * dt;
 	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) grua.cabina.anguloGiroY -= 45.0f * dt;
 
@@ -256,7 +264,7 @@ void actualizarFisicas(GruaCamion& grua, float dt, GLFWwindow* window) {
 	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) grua.brazo.extension += 2.0f * dt;
 	if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) grua.brazo.extension -= 2.0f * dt;
 
-	//Limitamos la extención máxima y mínima del brazo
+	//Limitamos la extenciï¿½n mï¿½xima y mï¿½nima del brazo
 	if (grua.brazo.extension < 2.0f) grua.brazo.extension = 2.0f;
 	if (grua.brazo.extension > 8.0f) grua.brazo.extension = 8.0f;
 }
@@ -355,18 +363,18 @@ int main() {
 		actualizarFisicas(miGrua, deltaTime, window);
 		actualizarMatricesGrua(miGrua);
 
-		glm::vec3 eye(0.0f), center(0.0f), up(0.0f, 1.0f, 0.0f); //EYE ojo, donde estas posicionado; CENTER centro, a qué objeto se esta mirando; UP controlar la inclinación de la camara. al poner (0.0f,1.0f,0.0f) se mantiene la camara recta y nivelada con el usuario (cielo arriba)
+		glm::vec3 eye(0.0f), center(0.0f), up(0.0f, 1.0f, 0.0f); //EYE ojo, donde estas posicionado; CENTER centro, a quï¿½ objeto se esta mirando; UP controlar la inclinaciï¿½n de la camara. al poner (0.0f,1.0f,0.0f) se mantiene la camara recta y nivelada con el usuario (cielo arriba)
 
 		if (camaraActual == CAM_TERCERA_PERSONA) {
 			float rad = glm::radians(miGrua.base.orientacion);
 			glm::vec3 forward(sin(rad), 0.0f, cos(rad));
-			//Pongo el ojo de la camara detrás de la base y un poco más arriba.
+			//Pongo el ojo de la camara detrï¿½s de la base y un poco mï¿½s arriba.
 			eye = miGrua.base.posicion - forward * 10.0f + glm::vec3(0.0f, 5.0f, 0.0f);
-			//Que apunte hacia el centro de la base y un poco más arriba
+			//Que apunte hacia el centro de la base y un poco mï¿½s arriba
 			center = miGrua.base.posicion + glm::vec3(0.0f, 2.0f, 0.0f);
 		}
 		else if (camaraActual == CAM_PRIMERA_PERSONA) {
-			//Para la primera persona tomo la posición de la cabina y la subo un poco
+			//Para la primera persona tomo la posiciï¿½n de la cabina y la subo un poco
 			eye = glm::vec3(miGrua.cabina.modelMatrix[3]) + glm::vec3(0.0f, 1.0f, 0.0f);
 			float rotacionTotal = miGrua.base.orientacion + miGrua.cabina.anguloGiroY;
 			float rad = glm::radians(rotacionTotal);
@@ -375,9 +383,9 @@ int main() {
 			center = eye + forwardCabina;
 		}
 
-		//Camar cenital, ver si preferimos incorporar una inclinación
+		//Cï¿½mara exterior con inclinaciï¿½n (~30 grados desde la vertical) para ver todo el escenario
 		else if (camaraActual == CAM_CENITAL) {
-			eye = glm::vec3(0.0f, 30.0f, 0.1f);
+			eye = glm::vec3(0.0f, 30.0f, 17.0f);
 			center = glm::vec3(0.0f, 0.0f, 0.0f);
 		}
 
