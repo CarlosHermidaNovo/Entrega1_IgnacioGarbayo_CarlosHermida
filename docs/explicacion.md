@@ -569,7 +569,11 @@ Controles y comportamiento:
    - Q/E: giro de cabina,
    - R/F: elevación articulación,
    - T/G: extensión/retracción brazo.
-9. Clamp de extensión del brazo: [2.0, 8.0].
+9. Colisión dura articulación-base:
+   - la pieza naranja (articulación) se modela como un segmento con radio de seguridad,
+   - se proyecta al espacio del chasis amarillo y se testea contra su AABB,
+   - si toca, se detiene el movimiento (sin rebote) tanto al subir/bajar como al extender/recoger.
+10. Clamp de extensión del brazo: [2.0, 8.0].
 
 Justificación física:
 

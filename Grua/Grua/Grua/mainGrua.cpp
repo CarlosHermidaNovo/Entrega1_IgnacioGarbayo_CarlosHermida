@@ -209,6 +209,66 @@ void dibujarGrua(GruaCamion& grua, GLuint shader) {
 	dibujarPieza(grua.brazo.modelMatrix, glm::vec3(0.3f, grua.brazo.extension, 0.3f), glm::vec3(0.7f, 0.7f, 0.7f), shader);
 }
 
+bool brazoColisionaConCabina(const GruaCamion& grua, float anguloElevacionZ, float extension) {
+	const auto segmentoIntersecaAABB = [](const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& bmin, const glm::vec3& bmax) -> bool {
+		float tmin = 0.0f;
+		float tmax = 1.0f;
+		glm::vec3 d = p1 - p0;
+
+		for (int i = 0; i < 3; ++i) {
+			if (fabs(d[i]) < 1e-6f) {
+				if (p0[i] < bmin[i] || p0[i] > bmax[i]) return false;
+			}
+			else {
+				float invD = 1.0f / d[i];
+				float t1 = (bmin[i] - p0[i]) * invD;
+				float t2 = (bmax[i] - p0[i]) * invD;
+				if (t1 > t2) {
+					float tmp = t1;
+					t1 = t2;
+					t2 = tmp;
+				}
+				if (t1 > tmin) tmin = t1;
+				if (t2 < tmax) tmax = t2;
+				if (tmin > tmax) return false;
+			}
+		}
+
+		return true;
+	};
+
+	const float radioArticulacion = 0.6f;
+	// Matrices de modelo como en el render (sin escala) para construir segmentos en mundo.
+	glm::mat4 baseModel = glm::mat4(1.0f);
+	baseModel = glm::translate(baseModel, grua.base.posicion);
+	baseModel = glm::translate(baseModel, glm::vec3(0.0f, 0.5f, 0.0f));
+	baseModel = glm::rotate(baseModel, glm::radians(grua.base.orientacion), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	glm::mat4 cabModel = baseModel;
+	cabModel = glm::translate(cabModel, grua.cabina.offset);
+	cabModel = glm::rotate(cabModel, glm::radians(grua.cabina.anguloGiroY), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	glm::mat4 articModel = cabModel;
+	articModel = glm::translate(articModel, grua.articulacion.offset);
+	articModel = glm::rotate(articModel, glm::radians(anguloElevacionZ), glm::vec3(1.0f, 0.0f, 0.0f));
+	articModel = glm::translate(articModel, glm::vec3(0.0f, 1.0f, 0.0f));
+
+	// Segmento de la articulación (naranja) en espacio mundo (recortado en la base para no contar el anclaje propio).
+	glm::vec3 p0ArticW = glm::vec3(articModel * glm::vec4(0.0f, -1.0f, 0.0f, 1.0f));
+	glm::vec3 p1ArticW = glm::vec3(articModel * glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+
+	// Solo bloqueamos contra la base/chasis (amarillo) como solicitaste.
+	const glm::vec3 medioBase(1.25f, 0.5f, 2.5f);
+	const glm::vec3 bminBaseArtic = -medioBase - glm::vec3(radioArticulacion);
+	const glm::vec3 bmaxBaseArtic = medioBase + glm::vec3(radioArticulacion);
+
+	glm::mat4 invBase = glm::inverse(baseModel);
+	glm::vec3 p0ArticBase = glm::vec3(invBase * glm::vec4(p0ArticW, 1.0f));
+	glm::vec3 p1ArticBase = glm::vec3(invBase * glm::vec4(p1ArticW, 1.0f));
+
+	return segmentoIntersecaAABB(p0ArticBase, p1ArticBase, bminBaseArtic, bmaxBaseArtic);
+}
+
 // ==========================================
 // FUNCIONES DE ACTUALIZACI�N Y F�SICA
 // ==========================================
@@ -258,15 +318,42 @@ void actualizarFisicas(GruaCamion& grua, float dt, GLFWwindow* window) {
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) grua.cabina.anguloGiroY += 45.0f * dt;
 	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) grua.cabina.anguloGiroY -= 45.0f * dt;
 
-	if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) grua.articulacion.anguloElevacionZ += 30.0f * dt;
-	if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) grua.articulacion.anguloElevacionZ -= 30.0f * dt;
+	float deltaAnguloBrazo = 0.0f;
+	if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) deltaAnguloBrazo += 30.0f * dt;
+	if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) deltaAnguloBrazo -= 30.0f * dt;
+	if (deltaAnguloBrazo != 0.0f) {
+		float signo = (deltaAnguloBrazo > 0.0f) ? 1.0f : -1.0f;
+		float restante = fabs(deltaAnguloBrazo);
+		const float pasoAngulo = 0.5f;
+		while (restante > 0.0f) {
+			float avance = (restante > pasoAngulo) ? pasoAngulo : restante;
+			float anguloCandidato = grua.articulacion.anguloElevacionZ + signo * avance;
+			bool colisionCandidata = brazoColisionaConCabina(grua, anguloCandidato, grua.brazo.extension);
+			if (colisionCandidata) break;
+			grua.articulacion.anguloElevacionZ = anguloCandidato;
+			restante -= avance;
+		}
+	}
 
-	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) grua.brazo.extension += 2.0f * dt;
-	if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) grua.brazo.extension -= 2.0f * dt;
-
-	//Limitamos la extenci�n m�xima y m�nima del brazo
-	if (grua.brazo.extension < 2.0f) grua.brazo.extension = 2.0f;
-	if (grua.brazo.extension > 8.0f) grua.brazo.extension = 8.0f;
+	float deltaExtension = 0.0f;
+	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) deltaExtension += 2.0f * dt;
+	if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) deltaExtension -= 2.0f * dt;
+	if (deltaExtension != 0.0f) {
+		float signo = (deltaExtension > 0.0f) ? 1.0f : -1.0f;
+		float restante = fabs(deltaExtension);
+		const float pasoExtension = 0.05f;
+		while (restante > 0.0f) {
+			float avance = (restante > pasoExtension) ? pasoExtension : restante;
+			float extensionCandidata = grua.brazo.extension + signo * avance;
+			if (extensionCandidata < 2.0f) extensionCandidata = 2.0f;
+			if (extensionCandidata > 8.0f) extensionCandidata = 8.0f;
+			bool colisionCandidata = brazoColisionaConCabina(grua, grua.articulacion.anguloElevacionZ, extensionCandidata);
+			if (colisionCandidata) break;
+			if (fabs(extensionCandidata - grua.brazo.extension) < 1e-6f) break;
+			grua.brazo.extension = extensionCandidata;
+			restante -= avance;
+		}
+	}
 }
 
 //Funcion para actualizar elementos de la grua.
