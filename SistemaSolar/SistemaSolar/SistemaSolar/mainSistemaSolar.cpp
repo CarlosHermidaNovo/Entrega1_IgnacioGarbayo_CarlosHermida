@@ -21,9 +21,9 @@
 #include <cstdio>
 #include <cstdlib>
 
-// tamaño ventana
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+// tamaño ventana (mutable para actualizar aspect ratio tras resize)
+int SCR_WIDTH = 800;
+int SCR_HEIGHT = 600;
 
 // Variables globales por comodidad
 int shaderProgram;
@@ -98,13 +98,14 @@ void openGlInit()
 	glCullFace(GL_BACK);
 }
 
+// Callback para ajustar el viewport al cambiar el tamaño de la ventana
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
-	// (Opcional, pero recomendado al usar variables globales de ancho y alto)
-	// SCR_WIDTH = width;
-	// SCR_HEIGHT = height;
+	SCR_WIDTH = width;
+	SCR_HEIGHT = height;
 }
 
+// Callback para manejar la entrada de teclado
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	if (action == GLFW_PRESS) {
 		if (key == GLFW_KEY_ESCAPE) {
@@ -121,6 +122,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 // Genera los 4 anillos de Saturno (C, B, A, F) cada uno con su radio y VAO propio.
 void prepararAnillo() {
 	const int SEG = 100;
+	// Cada anillo se genera como un strip de triángulos entre su radio interior y exterior, con 100 segmentos para suavidad. Se asigna un VAO/VBO distinto a cada anillo para poder dibujarlos con diferentes colores y radios.
 	for (int r = 0; r < NUM_ANILLOS; r++) {
 		std::vector<float> verts;
 		for (int i = 0; i <= SEG; i++) {
@@ -128,6 +130,7 @@ void prepararAnillo() {
 			verts.push_back(ANILLO_R_INT[r] * cos(theta)); verts.push_back(0.0f); verts.push_back(ANILLO_R_INT[r] * sin(theta));
 			verts.push_back(ANILLO_R_EXT[r] * cos(theta)); verts.push_back(0.0f); verts.push_back(ANILLO_R_EXT[r] * sin(theta));
 		}
+		// Cada segmento del anillo se dibuja como un strip de triángulos entre el borde interior y exterior, por eso se generan 2 vértices por cada paso angular.
 		numVerticesAnillo[r] = (int)verts.size() / 3;
 		glGenVertexArrays(1, &anilloVAO[r]);
 		glGenBuffers(1, &anilloVBO[r]);
@@ -148,11 +151,14 @@ void cargarOBJ(const char* ruta, unsigned int& VAO, unsigned int& VBO, int& numV
 	FILE* f = fopen(ruta, "r");
 	if (!f) { printf("Error: no se pudo abrir %s\n", ruta); numVerts = 0; return; }
 	char linea[512];
+	// Leemos el archivo linea a linea
 	while (fgets(linea, sizeof(linea), f)) {
+		// Si la línea define un vértice (comienza con "v "), extraemos sus coordenadas XYZ y las almacenamos en el vector de posiciones.
 		if (linea[0] == 'v' && linea[1] == ' ') {
 			float x, y, z;
 			sscanf(linea + 2, "%f %f %f", &x, &y, &z);
 			posiciones.push_back(x); posiciones.push_back(y); posiciones.push_back(z);
+		// Si la línea define una cara (comienza con "f "), extraemos los índices de los vértices que forman la cara.
 		} else if (linea[0] == 'f' && linea[1] == ' ') {
 			int idx[4], count = 0;
 			char* ptr = linea + 2;
@@ -162,6 +168,7 @@ void cargarOBJ(const char* ruta, unsigned int& VAO, unsigned int& VBO, int& numV
 				idx[count++] = atoi(ptr) - 1; // OBJ base-1; atoi se detiene en '/'
 				while (*ptr && *ptr != ' ') ptr++;
 			}
+			// Dependiendo de si la cara es un triángulo o un quad, generamos 1 o 2 triángulos respectivamente.
 			if (count >= 3) {
 				for (int vi : {idx[0], idx[1], idx[2]}) {
 					vertices.push_back(posiciones[3*vi]); vertices.push_back(posiciones[3*vi+1]); vertices.push_back(posiciones[3*vi+2]);
@@ -185,6 +192,7 @@ void cargarOBJ(const char* ruta, unsigned int& VAO, unsigned int& VBO, int& numV
 	glBindVertexArray(0);
 }
 
+// Prepara los modelos de la esfera (planetas/lunas), las órbitas (lineas circulares) y los anillos de Saturno
 void prepararModelos() {
 	// ---- ESFERA ----
 	int numFloats = sizeof(vertices_esfera) / sizeof(float); // Cada vertice tiene 8 floats: 3 para la posicion, 3 para la normal y 2 para las coordenadas de textura
@@ -269,6 +277,8 @@ void dibujarAnillosSaturno(Objeto& saturno, GLuint shader) {
 	glEnable(GL_CULL_FACE);
 }
 
+// Dibuja un objeto: primero su órbita (si tiene padre), luego el objeto en sí con su color y transformaciones
+// Se asume que el shader ya está activo y que el VAO del objeto está configurado.
 void dibujarObjeto(Objeto& obj, GLuint shader) {
 	// ORBITA
 	if (obj.padre != nullptr && obj.distancia > 0.0f) {
@@ -348,9 +358,9 @@ int main() {
 	// Satélites
 	Objeto luna = { 2.5f, 0.0f, 100.0f, 0.0f, 50.0f, 0.27f, glm::vec3(0.8f, 0.8f, 0.8f), &tierra, esferaVAO, esferaVBO, numVerticesEsfera };
 	Objeto iss  = { 1.5f, 0.0f, 300.0f, 0.0f,  0.0f, 0.02f, glm::vec3(0.9f, 0.9f, 1.0f), &tierra, issVAO,    issVBO,    numVerticesISS };
-
 	
-	std::vector<Objeto*> objetos = { &sol, &mercurio, &venus, &tierra, &marte, &jupiter, &saturno, &urano, &neptuno, &luna, &iss }; // Vector de punteros a objetos para facilitar la iteracion
+	// Vector de punteros a objetos para facilitar la iteracion
+	std::vector<Objeto*> objetos = { &sol, &mercurio, &venus, &tierra, &marte, &jupiter, &saturno, &urano, &neptuno, &luna, &iss };
 
 	// Asignamos los punteros globales para las camaras
 	ptrSol = &sol;
@@ -371,6 +381,7 @@ int main() {
 		glClearColor(0.01f, 0.01f, 0.05f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
+		// Activamos el shader
 		glUseProgram(shaderProgram);
 
 		// Actualizamos la posicion de cada objeto
@@ -410,7 +421,8 @@ int main() {
 		// Calculamos la matriz de vista usando glm::lookAt con los vectores eye, center y up
 		view = glm::lookAt(eye, center, up);
 		// Calculamos la matriz de proyeccion usando glm::perspective con un FOV de 45 grados, aspect ratio segun el tamaño de la ventana y planos cercano y lejano adecuados para nuestro sistema solar
-		glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
+		float aspect = (SCR_HEIGHT != 0) ? (float)SCR_WIDTH / (float)SCR_HEIGHT : 1.0f;
+		glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
 
 		// Enviamos las matrices de vista y proyeccion al shader
 		glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view)); // Enviamos la matriz de proyeccion al shader

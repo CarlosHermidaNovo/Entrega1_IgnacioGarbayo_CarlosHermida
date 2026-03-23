@@ -15,15 +15,6 @@ La explicación cubre:
 4. Lógica física y temporal en ambos programas (cinemática orbital y cinemática vehicular/articulada).
 5. Justificación de decisiones de implementación y limitaciones actuales.
 
-```cpp
-// Objetivo práctico del documento:
-// 1) Entender el flujo CPU -> GPU
-// 2) Entender la simulación (dt, estado, matrices)
-// 3) Defender cada decisión en clase
-```
-
----
-
 ## 2. Arquitectura global del proyecto
 
 Ambos ejecutables comparten el mismo patrón de arquitectura gráfica:
@@ -220,7 +211,7 @@ struct Objeto {
   - define clear color.
 
 - framebuffer_size_callback:
-  - actualiza glViewport al redimensionar ventana.
+   - actualiza glViewport al redimensionar ventana y guarda las nuevas dimensiones para recalcular el aspect ratio de la proyección; tras cada resize la matriz `projection` usa el aspect actualizado (ver mainSistemaSolar.cpp:15-17, 88-93, 327-329).
 
 - key_callback:
   - gestiona cámaras con teclas 0..4 y ESC.
@@ -652,6 +643,8 @@ Cálculo en loop:
 - Primera persona: posición de cabina, mirada hacia delante según rotación total base+cabina.
 - Cenital: vista externa elevada para ver escenario completo.
 
+Nota de resize: se añadió `framebuffer_size_callback` para actualizar viewport y dimensiones de ventana; la proyección usa el aspect ratio recalculado en cada frame tras un resize (ver mainGrua.cpp:15-17, 344-351, 461-467, 541-543).
+
 ```cpp
 if (camaraActual == CAM_TERCERA_PERSONA) {
    glm::vec3 forward(sin(rad), 0.0f, cos(rad));
@@ -738,80 +731,11 @@ GLuint setShaders(const char *nVertx, const char *nFrag) {
 
 ---
 
-## 7. Justificación de decisiones técnicas
-
-1. Shading plano por color uniforme:
-   - adecuado para foco en transformaciones jerárquicas y cinemática.
-   - reduce complejidad de depuración.
-
-2. Uso de GL_STATIC_DRAW:
-   - la malla base no cambia cada frame; solo cambian matrices.
-   - patrón correcto para rendimiento y claridad.
-
-3. Reutilización de mallas:
-   - sistema solar reutiliza esfera para muchos cuerpos.
-   - grúa reutiliza cubo para todas las piezas.
-
-4. Delta time en actualización:
-   - evita dependencia directa de FPS.
-   - mejora consistencia de movimiento.
-
-5. Jerarquía explícita de matrices:
-   - refleja mecánica real de brazos y sistemas orbitales.
-   - facilita defensa conceptual del modelo.
-
-6. Órbitas como GL_LINE_LOOP:
-   - visualización clara del radio y plano orbital.
-
-7. Anillos de Saturno en strips separados:
-   - permite representar bandas con radios y colores distintos sin complejidad extra.
-
-```cpp
-// Ejemplos directos de decisiones
-glBufferData(GL_ARRAY_BUFFER, dataSize, dataPtr, GL_STATIC_DRAW);   // malla estática
-glDrawArrays(GL_LINE_LOOP, 0, NUM_SEGMENTOS_ORBITA);                // órbitas
-glDrawArrays(GL_TRIANGLE_STRIP, 0, numVerticesAnillo[r]);           // anillos
-deltaTime = currentFrame - lastFrame;                               // independencia de FPS
-```
-
----
-
-## 8. Limitaciones actuales y lectura crítica (defendible en presentación)
-
-1. No hay iluminación ni materiales físicos:
-   - la señal visual depende de color plano.
-
-2. No se usan EBO ni indexación:
-   - hay repetición de vértices en cubos y otras mallas.
-
-3. Parser OBJ simplificado:
-   - funcional para el modelo actual de ISS,
-   - no cubre casos avanzados de formato OBJ.
-
-4. Proyección usa ratio fijo 800/600 en los cálculos:
-   - aunque el viewport se actualiza en sistema solar, sería mejor recalcular aspect real dinámicamente.
-
-5. Física simplificada:
-   - no hay dinámica rígida completa, solo cinemática controlada.
-
-Estas limitaciones son razonables para una primera entrega centrada en jerarquía, control y flujo OpenGL.
-
-```cpp
-// Ejemplo de simplificación actual
-// Sin iluminación ni normales en shader final:
-FragColor = vec4(colorObjeto, 1.0);
-
-// Sin EBO:
-glDrawArrays(GL_TRIANGLES, 0, numVertices);
-```
-
----
-
-## 9. Tabla función por función: entradas, salidas, efectos y física
+## 7. Tabla función por función: entradas, salidas, efectos y física
 
 En esta sección, “fuerza” se interpreta en sentido de modelo numérico simplificado. En el código no hay integración de Newton completa con masa/segunda ley explícita, pero sí hay términos equivalentes (aceleración impuesta, frenado, fricción y restricciones) que producen el movimiento observado.
 
-### 9.1 Sistema Solar (mainSistemaSolar.cpp)
+### 7.1 Sistema Solar (mainSistemaSolar.cpp)
 
 | Función | Entradas | Salida | Efectos secundarios | Física implementada (y “fuerzas” equivalentes) | Matrices y vectores implicados |
 |---|---|---|---|---|---|
@@ -826,7 +750,7 @@ En esta sección, “fuerza” se interpreta en sentido de modelo numérico simp
 | dibujarObjeto | Objeto& obj, shader | void | Dibuja órbita y cuerpo; actualiza uniforms modelo/color | Renderiza estado físico calculado. Para órbita: trayectoria circular prescrita (equivalente a movimiento centrípeto ideal). | modeloOrbita = translate(posPadre) * scale(distancia); modeloRender = obj.modelMatrix * rotate(Y, angulo_rotacion) * scale(escalado) |
 | main | Ninguna | int | Control total del ciclo: init, loop, cleanup | Integra la evolución temporal frame a frame usando dt. “Fuerzas” indirectas: las velocidades angulares impuestas en cada objeto gobiernan el movimiento. | view = lookAt(eye, center, up); projection = perspective(...); envío de uniforms MVP |
 
-### 9.2 Grúa (mainGrua.cpp)
+### 7.2 Grúa (mainGrua.cpp)
 
 | Función | Entradas | Salida | Efectos secundarios | Física implementada (y fuerzas equivalentes) | Matrices y vectores implicados |
 |---|---|---|---|---|---|
@@ -841,7 +765,7 @@ En esta sección, “fuerza” se interpreta en sentido de modelo numérico simp
 | openGlInit | Ninguna | void | Configura depth/cull/clear | No física; estado global gráfico | No aplica |
 | main | Ninguna | int | Orquesta init, loop, actualización física y cleanup | Integrador temporal global del modelo cinemático de conducción y articulación con dt por frame | Cálculo de cámara con lookAt y proyección con perspective; envío de view/projection |
 
-### 9.3 Utilidad compartida (lecturaShader_0_9.h)
+### 7.3 Utilidad compartida (lecturaShader_0_9.h)
 
 | Función | Entradas | Salida | Efectos secundarios | Física implementada | Matrices y vectores implicados |
 |---|---|---|---|---|---|
@@ -852,9 +776,9 @@ En esta sección, “fuerza” se interpreta en sentido de modelo numérico simp
 
 ---
 
-## 10. Diagrama por frame (texto) del pipeline exacto de ejecución
+## 8. Diagrama por frame (texto) del pipeline exacto de ejecución
 
-### 10.1 Sistema Solar: orden exacto en cada frame
+### 8.1 Sistema Solar: orden exacto en cada frame
 
 1. currentFrame = glfwGetTime()
 2. deltaTime = currentFrame - lastFrame
@@ -882,7 +806,7 @@ Pipeline GPU por draw call (pasos 13 y 14):
 5. Depth test + cull face (salvo anillos, cull temporalmente desactivado)
 6. Escritura en framebuffer
 
-### 10.2 Grúa: orden exacto en cada frame
+### 8.2 Grúa: orden exacto en cada frame
 
 1. currentFrame = glfwGetTime()
 2. deltaTime = currentFrame - lastFrame
@@ -912,7 +836,7 @@ Pipeline GPU por draw call (pasos 13 y 14):
 
 ---
 
-## 11. Resumen para defensa oral
+## 9. Resumen para defensa oral
 
 Idea central de ambos programas:
 
@@ -930,24 +854,6 @@ Diferencia conceptual principal:
 Con esto se cumple el objetivo de representar sistemas jerárquicos en OpenGL 3.3 con control interactivo y comportamiento temporal estable.
 
 ```text
-CPU (estado + matrices) -> Uniforms/VAO -> Vertex Shader (MVP) -> Raster -> Fragment Shader (color)
--> Depth/Cull -> Framebuffer -> SwapBuffers
+CPU (estado + matrices) -> Uniforms/VAO -> Vertex Shader (MVP) -> Raster -> Fragment Shader (color) -> Depth/Cull -> Framebuffer -> SwapBuffers
 ```
 
----
-
-## 12. Posibles mejoras futuras (opcionales)
-
-1. Añadir iluminación Phong o Blinn-Phong.
-2. Incorporar texturas reales de planetas y materiales de la grúa.
-3. Sustituir parser OBJ por cargador más robusto.
-4. Usar EBO donde proceda para reducir duplicado de vértices.
-5. Ajustar aspect ratio dinámico en ambos programas.
-6. Añadir HUD con datos de velocidad, cámara y estado de simulación.
-
-```cpp
-// Ejemplo de mejora: aspect ratio dinámico
-int w, h;
-glfwGetFramebufferSize(window, &w, &h);
-glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)w / (float)h, 0.1f, 1000.0f);
-```
