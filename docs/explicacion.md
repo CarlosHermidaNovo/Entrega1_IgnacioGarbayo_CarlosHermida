@@ -217,12 +217,14 @@ struct Objeto {
   - gestiona cámaras con teclas 0..5 y ESC.
   - la tecla 5 activa/cicla el modo telescopio (cada pulsación avanza al siguiente objetivo).
 
-- processInput (llamada cada frame):
-  - lee flechas del teclado (←↑↓→) de forma continua y acumula rotaciones en `rotationX`/`rotationY`.
+- processInput (llamada cada frame, solo actúa en CAM_SOL):
+  - ←/→ giran el rumbo de la nave (`navYaw`).
+  - ↑/↓ avanzan/retroceden en la dirección actual (`navPos += frente * vel`).
+  - Shift+↑/↓ inclinan la nave (`navPitch`), limitado a ±89° para evitar gimbal lock.
 
 Justificación:
 
-Separar callbacks del bucle principal mantiene el flujo limpio y permite explicar interacción y render por separado en la defensa. La entrada continua de flechas se procesa aparte con `processInput` porque GLFW_PRESS en key_callback solo detecta el evento puntual, no la pulsación sostenida.
+Separar callbacks del bucle principal mantiene el flujo limpio y permite explicar interacción y render por separado en la defensa. La entrada continua de flechas se procesa aparte con `processInput` porque GLFW_PRESS en key_callback solo detecta el evento puntual, no la pulsación sostenida. La navegación solo aplica a la vista general (CAM_SOL) para no interferir con las cámaras temáticas.
 
 ```cpp
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -241,11 +243,18 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 }
 
 void processInput(GLFWwindow* window) {
-   float speed = 0.003f;
-   if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    rotationX -= speed;
-   if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  rotationX += speed;
-   if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  rotationY -= speed;
-   if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) rotationY += speed;
+   if (camaraActual != CAM_SOL) return;
+   float velGiro = 1.5f * deltaTime;
+   float velMov  = 50.0f * deltaTime;
+   if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)   navYaw -= velGiro;
+   if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)  navYaw += velGiro;
+   // Shift+flechas verticales: pitch; sin Shift: avanzar/retroceder
+   if (Shift pulsado) { navPitch ±= velGiro; }
+   else {
+      glm::vec3 frente = glm::normalize(glm::vec3(cos(navPitch)*cos(navYaw), sin(navPitch), cos(navPitch)*sin(navYaw)));
+      if (UP) navPos += frente * velMov;
+      if (DOWN) navPos -= frente * velMov;
+   }
 }
 ```
 
@@ -384,29 +393,34 @@ Modo de cámara seleccionado por enum CameraMode:
 - CAM_SATURNO (tecla 4): vista lateral elevada para apreciar los anillos con su inclinación axial.
 - CAM_TELESCOPIO (tecla 5): cámara posicionada en la Tierra que apunta al objetivo actual. Cada pulsación sucesiva de la tecla 5 cicla entre los 10 objetivos disponibles (Sol, Mercurio, Venus, Marte, Júpiter, Saturno, Urano, Neptuno, Luna, ISS) usando un índice `telescopioIdx` y un vector `objetivosTelescopio`.
 
-Rotación manual con flechas:
+Navegación libre (nave espacial) en la vista general:
 
-- En cualquier modo de cámara, las flechas del teclado (←↑↓→) permiten rotar la vista.
-- Se acumulan dos ángulos globales (`rotationX`, `rotationY`) incrementados en `processInput()` cada frame.
-- Después de calcular `view` con `glm::lookAt`, se aplican rotaciones adicionales sobre los ejes X e Y de la cámara.
+- Solo en CAM_SOL (tecla 0), las flechas controlan una cámara libre tipo nave espacial.
+- Se mantienen tres variables globales: `navPos` (posición 3D), `navYaw` (rumbo horizontal) y `navPitch` (inclinación vertical).
+- ←/→ modifican `navYaw`, ↑/↓ avanzan/retroceden en la dirección de la nave, Shift+↑/↓ modifican `navPitch`.
+- El vector `frente` se calcula a partir de yaw y pitch: `frente = (cos(pitch)*cos(yaw), sin(pitch), cos(pitch)*sin(yaw))`.
+- `eye = navPos`, `center = eye + normalize(frente)`.
+- La posición y orientación se conservan al cambiar a otra cámara y volver.
+- Las cámaras temáticas (1-5) no se ven afectadas por las flechas.
 
 En el loop, según el modo:
 
-- se define eye y center,
+- se define eye y center (en CAM_SOL a partir de navPos/navYaw/navPitch, en el resto a partir de posiciones de los cuerpos celestes),
 - se calcula view con glm::lookAt,
-- se aplican rotaciones manuales sobre view,
 - projection con glm::perspective (aspect ratio recalculado tras resize).
 
 Justificación:
 
-Las cámaras temáticas facilitan demostrar jerarquía espacial y relación entre cuerpos, que es parte central de la práctica. El modo telescopio permite explorar todo el sistema desde un punto fijo. La rotación manual con flechas añade interactividad sin depender de un modo de cámara concreto.
+Las cámaras temáticas facilitan demostrar jerarquía espacial y relación entre cuerpos, que es parte central de la práctica. El modo telescopio permite explorar todo el sistema desde un punto fijo. La navegación libre en la vista general simula una nave espacial y añade interactividad, cumpliendo el requisito de movimiento con flechas.
 
 ```cpp
 switch (camaraActual) {
-case CAM_SOL:
-   eye = glm::vec3(0.0f, 100.0f, 120.0f);
-   center = ptrSol->getPosicionGlobal();
+case CAM_SOL: {
+   eye = navPos;
+   glm::vec3 frente = glm::normalize(glm::vec3(cos(navPitch)*cos(navYaw), sin(navPitch), cos(navPitch)*sin(navYaw)));
+   center = eye + frente;
    break;
+}
 case CAM_TELESCOPIO:
    telescopioIdx = telescopioIdx % (int)objetivosTelescopio.size();
    eye = ptrTierra->getPosicionGlobal();
@@ -414,9 +428,6 @@ case CAM_TELESCOPIO:
    break;
 }
 view = glm::lookAt(eye, center, up);
-// Rotación manual con flechas
-view = glm::rotate(view, rotationX, glm::vec3(1.0f, 0.0f, 0.0f));
-view = glm::rotate(view, rotationY, glm::vec3(0.0f, 1.0f, 0.0f));
 float aspect = (SCR_HEIGHT != 0) ? (float)SCR_WIDTH / (float)SCR_HEIGHT : 1.0f;
 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
 ```
@@ -426,11 +437,11 @@ projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
 Secuencia de cada frame:
 
 1. calcular deltaTime,
-2. procesar entrada de flechas (processInput),
+2. procesar navegación con flechas (processInput, solo actúa en CAM_SOL),
 3. limpiar color+depth,
 4. glUseProgram,
 5. actualizar todos los objetos,
-6. calcular view/projection según cámara + rotación manual,
+6. calcular view/projection según cámara (en CAM_SOL usa navPos/navYaw/navPitch),
 7. enviar uniforms view/projection,
 8. dibujar objetos,
 9. dibujar anillos de Saturno,

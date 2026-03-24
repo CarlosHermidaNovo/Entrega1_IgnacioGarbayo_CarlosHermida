@@ -32,9 +32,10 @@ unsigned int VAO, VBO, EBO;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-// Variables para el giro manual de la cámara con flechas
-float rotationX = 0.0f;
-float rotationY = 0.0f;
+// Variables para la cámara de navegación libre (nave espacial) en la vista general (tecla 0)
+glm::vec3 navPos = glm::vec3(0.0f, 100.0f, 120.0f); // Posición inicial de la nave
+float navYaw = glm::radians(-90.0f); // Ángulo horizontal (empieza mirando hacia -Z, es decir, hacia el sol)
+float navPitch = glm::radians(-35.0f); // Ángulo vertical (ligeramente inclinada hacia abajo)
 
 GLuint esferaVAO, esferaVBO;
 GLuint orbitaVAO, orbitaVBO;
@@ -96,14 +97,36 @@ Objeto* ptrMarte;
 Objeto* ptrISS;
 Objeto* ptrSaturno;
 
-// Función para gestionar la entrada continua del teclado (flechas para rotar la cámara)
+// Función para gestionar la entrada continua del teclado (flechas para navegar la cámara libre)
+// Solo actúa en la vista general (CAM_SOL), simulando el movimiento de una nave espacial
 void processInput(GLFWwindow* window)
 {
-	float speed = 0.003f;
-	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    rotationX -= speed;
-	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  rotationX += speed;
-	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  rotationY -= speed;
-	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) rotationY += speed;
+	if (camaraActual != CAM_SOL) return; // Solo navegamos en la vista general
+
+	float velGiro = 1.5f * deltaTime;   // Velocidad de giro (rad/s)
+	float velMov  = 50.0f * deltaTime;  // Velocidad de desplazamiento (unidades/s)
+
+	// Izquierda/Derecha: girar el rumbo de la nave
+	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)   navYaw -= velGiro;
+	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)  navYaw += velGiro;
+	// Shift + Arriba/Abajo: inclinar la nave (pitch)
+	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS) {
+		if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    navPitch += velGiro;
+		if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  navPitch -= velGiro;
+		// Limitar pitch para no volcar la cámara
+		if (navPitch > glm::radians(89.0f))  navPitch = glm::radians(89.0f);
+		if (navPitch < glm::radians(-89.0f)) navPitch = glm::radians(-89.0f);
+	} else {
+		// Arriba/Abajo sin Shift: avanzar/retroceder en la dirección de la nave
+		glm::vec3 frente;
+		frente.x = cos(navPitch) * cos(navYaw);
+		frente.y = sin(navPitch);
+		frente.z = cos(navPitch) * sin(navYaw);
+		frente = glm::normalize(frente);
+
+		if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    navPos += frente * velMov;
+		if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  navPos -= frente * velMov;
+	}
 }
 
 // Función para inicializar OpenGL
@@ -425,10 +448,16 @@ int main() {
 
 		// Dependiendo de la camara seleccionada, calculamos el vector eye (posicion de la camara) y center (punto al que mira la camara)
 		switch (camaraActual) {
-		case CAM_SOL:
-			eye = glm::vec3(0.0f, 100.0f, 120.0f);
-			center = ptrSol->getPosicionGlobal();
+		case CAM_SOL: {
+			// Cámara de navegación libre (nave espacial)
+			eye = navPos;
+			glm::vec3 frente;
+			frente.x = cos(navPitch) * cos(navYaw);
+			frente.y = sin(navPitch);
+			frente.z = cos(navPitch) * sin(navYaw);
+			center = eye + glm::normalize(frente);
 			break;
+		}
 		case CAM_MARTE:
 			eye = ptrMarte->getPosicionGlobal() + glm::vec3(0.0f, 3.0f, 5.0f);
 			center = ptrMarte->getPosicionGlobal();
@@ -456,9 +485,6 @@ int main() {
 
 		// Calculamos la matriz de vista usando glm::lookAt con los vectores eye, center y up
 		view = glm::lookAt(eye, center, up);
-		// Aplicamos la rotación manual de la cámara con las flechas
-		view = glm::rotate(view, rotationX, glm::vec3(1.0f, 0.0f, 0.0f));
-		view = glm::rotate(view, rotationY, glm::vec3(0.0f, 1.0f, 0.0f));
 		// Calculamos la matriz de proyeccion usando glm::perspective con un FOV de 45 grados, aspect ratio segun el tamaño de la ventana y planos cercano y lejano adecuados para nuestro sistema solar
 		float aspect = (SCR_HEIGHT != 0) ? (float)SCR_WIDTH / (float)SCR_HEIGHT : 1.0f;
 		glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);

@@ -17,7 +17,7 @@
 * **ISS con Modelo 3D OBJ:** La Estación Espacial Internacional se renderiza usando un modelo `.obj` externo cargado en tiempo de ejecución (`iss.obj`), en lugar de la esfera genérica. Se implementó la función `cargarOBJ()` que parsea el archivo, extrae posiciones XYZ y sube la geometría a la GPU en un VAO/VBO propio. El sistema de dibujo se generalizó para que cada `Objeto` use su propio VAO y `numVertices` en lugar de los globales de la esfera, sin romper el resto de planetas.
 * **Anillos de Saturno:** Saturno incluye 4 anillos concéntricos diferenciados (C, B, A y F), aproximando los anillos reales del planeta. Cada anillo es un disco plano (`GL_TRIANGLE_STRIP`) generado proceduralmente con radio interno y externo propios, y dibujado con su color característico. Se aplica la inclinación axial real de Saturno (~27°) respecto al plano orbital. El backface culling se desactiva temporalmente durante su renderizado al tratarse de superficies planas.
 * **Modo Telescopio desde la Tierra:** Cámara posicionada en la Tierra que permite observar cualquier cuerpo celeste del sistema. La tecla `5` activa el modo y, pulsándola repetidamente, cicla entre los 10 objetivos disponibles (Sol, Mercurio, Venus, Marte, Júpiter, Saturno, Urano, Neptuno, Luna, ISS).
-* **Rotación Manual de la Cámara:** Las flechas del teclado permiten rotar la vista en cualquier modo de cámara, aplicando rotaciones incrementales sobre los ejes X (arriba/abajo) e Y (izquierda/derecha) a la matriz de vista.
+* **Navegación Libre (Nave Espacial):** En la vista general (tecla `0`), las flechas del teclado simulan el movimiento de una nave espacial. `←`/`→` giran el rumbo, `↑`/`↓` avanzan/retroceden en la dirección actual, y `Shift`+`↑`/`↓` inclinan la nave (pitch). La posición y orientación se conservan al cambiar de cámara y volver.
 
 ---
 
@@ -27,13 +27,15 @@ El programa incluye un modo "Telescopio" controlado numéricamente:
 
 | Tecla | Acción |
 | :--- | :--- |
-| `0` | **Vista General:** Cámara cenital enfocando al Sol. |
+| `0` | **Vista General (Nave Espacial):** Cámara libre navegable con las flechas. |
 | `1` | **Seguimiento:** Cámara enfocada y siguiendo a Marte. |
 | `2` | **Vista Satélite:** Cámara posicionada en la Luna enfocando a la Tierra. |
 | `3` | **Vista Orbital:** Cámara posicionada en la Tierra enfocando a la ISS. |
 | `4` | **Saturno:** Cámara lateral elevada para apreciar los anillos con su inclinación axial. |
 | `5` | **Telescopio desde la Tierra:** Primera pulsación activa el modo telescopio; pulsaciones sucesivas ciclan el objetivo entre todos los cuerpos celestes (Sol, Mercurio, Venus, Marte, Júpiter, Saturno, Urano, Neptuno, Luna, ISS). |
-| `←↑↓→` | **Rotación manual de la cámara:** Las flechas rotan la vista en cualquier modo de cámara. |
+| `←→` | **Girar rumbo** de la nave (solo en vista general, tecla `0`). |
+| `↑↓` | **Avanzar/Retroceder** en la dirección actual de la nave. |
+| `Shift`+`↑↓` | **Inclinar la nave** (pitch) para mirar arriba/abajo. |
 | `ESC` | Cierra la aplicación. |
 
 
