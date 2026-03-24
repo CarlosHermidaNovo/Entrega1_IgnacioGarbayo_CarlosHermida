@@ -32,6 +32,10 @@ unsigned int VAO, VBO, EBO;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+// Variables para el giro manual de la cámara con flechas
+float rotationX = 0.0f;
+float rotationY = 0.0f;
+
 GLuint esferaVAO, esferaVBO;
 GLuint orbitaVAO, orbitaVBO;
 const int NUM_ANILLOS = 4;
@@ -78,8 +82,12 @@ struct Objeto {
 	}
 };
 
-enum CameraMode { CAM_SOL, CAM_MARTE, CAM_TIERRA_DESDE_LUNA, CAM_ISS_DESDE_TIERRA, CAM_SATURNO };
+enum CameraMode { CAM_SOL, CAM_MARTE, CAM_TIERRA_DESDE_LUNA, CAM_ISS_DESDE_TIERRA, CAM_SATURNO, CAM_TELESCOPIO };
 CameraMode camaraActual = CAM_SOL;
+
+// Modo telescopio: índice del objetivo actual y lista de objetivos (todos menos la Tierra)
+int telescopioIdx = 0;
+std::vector<Objeto*> objetivosTelescopio;
 
 Objeto* ptrSol;
 Objeto* ptrTierra;
@@ -87,6 +95,16 @@ Objeto* ptrLuna;
 Objeto* ptrMarte;
 Objeto* ptrISS;
 Objeto* ptrSaturno;
+
+// Función para gestionar la entrada continua del teclado (flechas para rotar la cámara)
+void processInput(GLFWwindow* window)
+{
+	float speed = 0.003f;
+	if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    rotationX -= speed;
+	if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  rotationX += speed;
+	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  rotationY -= speed;
+	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) rotationY += speed;
+}
 
 // Función para inicializar OpenGL
 void openGlInit()
@@ -116,6 +134,12 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		if (key == GLFW_KEY_2) camaraActual =CAM_TIERRA_DESDE_LUNA; // CAMARA PARA TIERRA DESDE LUNA
 		if (key == GLFW_KEY_3) camaraActual = CAM_ISS_DESDE_TIERRA; // CAMARA ISS DESDE TIERRA
 		if (key == GLFW_KEY_4) camaraActual = CAM_SATURNO; // CAMARA SATURNO (anillos)
+		if (key == GLFW_KEY_5) { // TELESCOPIO DESDE LA TIERRA: cada pulsación cambia de objetivo
+			if (camaraActual == CAM_TELESCOPIO)
+				telescopioIdx++; // Si ya estamos en modo telescopio, avanzamos al siguiente objetivo
+			else
+				camaraActual = CAM_TELESCOPIO; // Si no, entramos en modo telescopio
+		}
 	}
 }
 
@@ -370,12 +394,18 @@ int main() {
 	ptrISS = &iss;
 	ptrSaturno = &saturno;
 
+	// Objetivos del telescopio: todos los cuerpos excepto la Tierra (que es el observador)
+	objetivosTelescopio = { &sol, &mercurio, &venus, &marte, &jupiter, &saturno, &urano, &neptuno, &luna, &iss };
+
 	// Bucle principal
 	while (!glfwWindowShouldClose(window)) {
 		// Calculo del deltaTime para animaciones suaves
 		float currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
+
+		// Procesar entrada de flechas para rotar la cámara
+		processInput(window);
 
 		// Limpieza de buffers
 		glClearColor(0.01f, 0.01f, 0.05f, 1.0f);
@@ -416,10 +446,19 @@ int main() {
 			eye = ptrSaturno->getPosicionGlobal() + glm::vec3(0.0f, 8.0f, 15.0f);
 			center = ptrSaturno->getPosicionGlobal();
 			break;
+		case CAM_TELESCOPIO:
+			// Telescopio desde la Tierra: mira al objetivo actual, ciclando con la tecla 5
+			telescopioIdx = telescopioIdx % (int)objetivosTelescopio.size();
+			eye = ptrTierra->getPosicionGlobal();
+			center = objetivosTelescopio[telescopioIdx]->getPosicionGlobal();
+			break;
 		}
 
 		// Calculamos la matriz de vista usando glm::lookAt con los vectores eye, center y up
 		view = glm::lookAt(eye, center, up);
+		// Aplicamos la rotación manual de la cámara con las flechas
+		view = glm::rotate(view, rotationX, glm::vec3(1.0f, 0.0f, 0.0f));
+		view = glm::rotate(view, rotationY, glm::vec3(0.0f, 1.0f, 0.0f));
 		// Calculamos la matriz de proyeccion usando glm::perspective con un FOV de 45 grados, aspect ratio segun el tamaño de la ventana y planos cercano y lejano adecuados para nuestro sistema solar
 		float aspect = (SCR_HEIGHT != 0) ? (float)SCR_WIDTH / (float)SCR_HEIGHT : 1.0f;
 		glm::mat4 projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
