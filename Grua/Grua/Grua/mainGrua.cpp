@@ -104,6 +104,21 @@ float vertices_cubo[] = {
 unsigned int cuboVAO, cuboVBO;
 int numVerticesCubo = 36;
 
+// Vértices para el borde (contorno) de las caras frontal y trasera del cubo-rueda, dibujados con GL_LINE_LOOP
+float vertices_borde_rueda[] = {
+	// Cara frontal (z = 0.5) — 4 vértices
+	-0.5f,-0.5f, 0.5f,
+	 0.5f,-0.5f, 0.5f,
+	 0.5f, 0.5f, 0.5f,
+	-0.5f, 0.5f, 0.5f,
+	// Cara trasera (z = -0.5) — 4 vértices
+	-0.5f,-0.5f,-0.5f,
+	 0.5f,-0.5f,-0.5f,
+	 0.5f, 0.5f,-0.5f,
+	-0.5f, 0.5f,-0.5f,
+};
+unsigned int bordeVAO, bordeVBO;
+
 // ==========================================
 // ESTRUCTURAS DE LAS PIEZAS
 // ==========================================
@@ -118,6 +133,8 @@ struct Base {
 	float friccion = 4.0f;  // Rozamiento para detenerse solo si no se acelera
 	float velMaxima = 25.0f;
 	float velGiro = 60.0f;
+	float anguloRodadura = 0.0f;  // Ángulo acumulado de giro de las ruedas (rodadura)
+	float anguloVolante = 0.0f;   // Ángulo de dirección de las ruedas delanteras
 	glm::mat4 modelMatrix;
 };
 
@@ -180,6 +197,18 @@ void prepararCubo() {
 	glBindVertexArray(0);
 }
 
+// Prepara los buffers para el contorno (borde) de las caras del cubo-rueda.
+void prepararBorde() {
+	glGenVertexArrays(1, &bordeVAO);
+	glGenBuffers(1, &bordeVBO);
+	glBindVertexArray(bordeVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, bordeVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_borde_rueda), vertices_borde_rueda, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+	glBindVertexArray(0);
+}
+
 // ==========================================
 // FUNCIONES DE DIBUJO
 // ==========================================
@@ -215,12 +244,53 @@ void dibujarPieza(glm::mat4 matrizJerarquica, glm::vec3 escala, glm::vec3 color,
 	glDrawArrays(GL_TRIANGLES, 0, numVerticesCubo);
 }
 
+// Dibuja una rueda (cubo con borde) en la posición indicada relativa a la base, aplicando la rodadura y opcionalmente el giro de dirección.
+void dibujarRueda(glm::mat4 matrizBase, glm::vec3 posRueda, float anguloRodadura, float anguloDireccion, glm::vec3 color, GLuint shader) {
+	glm::mat4 modelo = matrizBase;
+	modelo = glm::translate(modelo, posRueda);
+	// Giro de dirección (solo afecta a las ruedas delanteras, las traseras reciben 0)
+	modelo = glm::rotate(modelo, glm::radians(anguloDireccion), glm::vec3(0.0f, 1.0f, 0.0f));
+	// Orientar el cubo para que quede vertical y perpendicular al eje del vehículo (eje Z pasa a ser el eje X del camión)
+	modelo = glm::rotate(modelo, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	// Rodadura: giro sobre su propio eje (Z del cubo tras la rotación)
+	modelo = glm::rotate(modelo, glm::radians(anguloRodadura), glm::vec3(0.0f, 0.0f, 1.0f));
+	// Escala: 1.2 en XY (lado visible), 0.35 en Z (grosor fino)
+	modelo = glm::scale(modelo, glm::vec3(1.2f, 1.2f, 0.35f));
+
+	glUniformMatrix4fv(glGetUniformLocation(shader, "modelo"), 1, GL_FALSE, glm::value_ptr(modelo));
+	glUniform3fv(glGetUniformLocation(shader, "colorObjeto"), 1, glm::value_ptr(color));
+	// Reutilizamos el cubo existente como geometría de la rueda
+	glBindVertexArray(cuboVAO);
+	glDrawArrays(GL_TRIANGLES, 0, numVerticesCubo);
+	glBindVertexArray(0);
+
+	// Dibujar el contorno de las caras frontal y trasera en negro para ver la rodadura
+	glm::vec3 colorBorde(0.0f, 0.0f, 0.0f); // Negro
+	glUniform3fv(glGetUniformLocation(shader, "colorObjeto"), 1, glm::value_ptr(colorBorde));
+	glLineWidth(3.0f);
+	glBindVertexArray(bordeVAO);
+	glDrawArrays(GL_LINE_LOOP, 0, 4);  // Cara frontal
+	glDrawArrays(GL_LINE_LOOP, 4, 4);  // Cara trasera
+	glBindVertexArray(0);
+	glLineWidth(1.0f);
+}
+
 // Dibuja la grúa completa llamando a dibujarPieza para cada una de sus partes, aplicando las transformaciones jerárquicas correspondientes para posicionarlas correctamente en el mundo.
 void dibujarGrua(GruaCamion& grua, GLuint shader) {
 	dibujarPieza(grua.base.modelMatrix, glm::vec3(2.5f, 1.0f, 5.0f), glm::vec3(0.9f, 0.8f, 0.1f), shader);
 	dibujarPieza(grua.cabina.modelMatrix, glm::vec3(1.5f, 1.5f, 1.5f), glm::vec3(0.3f, 0.3f, 0.3f), shader);
 	dibujarPieza(grua.articulacion.modelMatrix, glm::vec3(0.5f, 2.0f, 0.5f), glm::vec3(0.9f, 0.5f, 0.1f), shader);
 	dibujarPieza(grua.brazo.modelMatrix, glm::vec3(0.3f, grua.brazo.extension, 0.3f), glm::vec3(0.7f, 0.7f, 0.7f), shader);
+
+	// Dibujar las 4 ruedas (cubos con borde) en las esquinas de la base
+	glm::vec3 colorRueda(0.9f, 0.1f, 0.1f); // Rojo llamativo
+	// Posiciones de las ruedas en el espacio local de la base (esquinas inferiores del chasis)
+	// Delanteras (Z positivo = frente del camión): con ángulo de dirección
+	dibujarRueda(grua.base.modelMatrix, glm::vec3(-1.3f, -0.5f, 1.8f), grua.base.anguloRodadura, grua.base.anguloVolante, colorRueda, shader);
+	dibujarRueda(grua.base.modelMatrix, glm::vec3( 1.3f, -0.5f, 1.8f), grua.base.anguloRodadura, grua.base.anguloVolante, colorRueda, shader);
+	// Traseras (Z negativo = parte trasera): sin ángulo de dirección
+	dibujarRueda(grua.base.modelMatrix, glm::vec3(-1.3f, -0.5f, -1.8f), grua.base.anguloRodadura, 0.0f, colorRueda, shader);
+	dibujarRueda(grua.base.modelMatrix, glm::vec3( 1.3f, -0.5f, -1.8f), grua.base.anguloRodadura, 0.0f, colorRueda, shader);
 }
 
 
@@ -268,7 +338,7 @@ bool brazoColisionaConCabina(const GruaCamion& grua, float anguloElevacionZ, flo
 	// Matrices de modelo como en el render (sin escala) para construir segmentos en mundo.
 	glm::mat4 baseModel = glm::mat4(1.0f);
 	baseModel = glm::translate(baseModel, grua.base.posicion);
-	baseModel = glm::translate(baseModel, glm::vec3(0.0f, 0.5f, 0.0f));
+	baseModel = glm::translate(baseModel, glm::vec3(0.0f, 1.1f, 0.0f));
 	baseModel = glm::rotate(baseModel, glm::radians(grua.base.orientacion), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	// La cabina rota sobre la base, y la articulacion rota sobre la cabina. Para calcular la posición del brazo en el mundo, aplicamos estas transformaciones jerárquicas.
@@ -346,13 +416,33 @@ void actualizarFisicas(GruaCamion& grua, float dt, GLFWwindow* window) {
 	if (grua.base.posicion.z > LIMITE_SUELO)  { grua.base.posicion.z = LIMITE_SUELO;  grua.base.velocidadActual = 0.0f; }
 	if (grua.base.posicion.z < -LIMITE_SUELO) { grua.base.posicion.z = -LIMITE_SUELO; grua.base.velocidadActual = 0.0f; }
 
+	// 5. Rodadura de las ruedas: el ángulo de giro depende de la velocidad y el radio de la rueda
+	const float radioRueda = 0.6f; // Radio visual de la rueda (0.5 * escala 1.2)
+	grua.base.anguloRodadura += (grua.base.velocidadActual * dt / radioRueda) * (180.0f / 3.14159f);
+
+	// 6. Ángulo de dirección visual de las ruedas delanteras (máximo ±25 grados)
+	// Las ruedas giran visualmente siempre que se pulse A/D, aunque el vehículo esté parado
+	const float maxVolante = 25.0f;
+	const float velVolante = 120.0f; // Velocidad a la que las ruedas giran hacia la posición objetivo
+	float objetivo = 0.0f;
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) objetivo = maxVolante;
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) objetivo = -maxVolante;
+	// Interpolar suavemente hacia el ángulo objetivo
+	if (grua.base.anguloVolante < objetivo) {
+		grua.base.anguloVolante += velVolante * dt;
+		if (grua.base.anguloVolante > objetivo) grua.base.anguloVolante = objetivo;
+	} else if (grua.base.anguloVolante > objetivo) {
+		grua.base.anguloVolante -= velVolante * dt;
+		if (grua.base.anguloVolante < objetivo) grua.base.anguloVolante = objetivo;
+	}
+
 	// Controles adicionales de la grua
 
-	// 5. Giro de la cabina (Q/E)
+	// 7. Giro de la cabina (Q/E)
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) grua.cabina.anguloGiroY += 45.0f * dt;
 	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) grua.cabina.anguloGiroY -= 45.0f * dt;
 
-	// 6. Elevacion del brazo (R/F) y extension del brazo (T/G)
+	// 8. Elevacion del brazo (R/F) y extension del brazo (T/G)
 	float deltaAnguloBrazo = 0.0f;
 	if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) deltaAnguloBrazo += 30.0f * dt;
 	if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) deltaAnguloBrazo -= 30.0f * dt;
@@ -397,7 +487,7 @@ void actualizarMatricesGrua(GruaCamion& grua) {
 	// La cabina rota sobre la base
 	glm::mat4 modeloBase = glm::mat4(1.0f);
 	modeloBase = glm::translate(modeloBase, grua.base.posicion);
-	modeloBase = glm::translate(modeloBase, glm::vec3(0.0f, 0.5f, 0.0f));
+	modeloBase = glm::translate(modeloBase, glm::vec3(0.0f, 1.1f, 0.0f));
 	modeloBase = glm::rotate(modeloBase, glm::radians(grua.base.orientacion), glm::vec3(0.0f, 1.0f, 0.0f));
 	grua.base.modelMatrix = modeloBase;
 
@@ -486,6 +576,7 @@ int main() {
 
 	prepararSuelo();
 	prepararCubo();
+	prepararBorde();
 
 	// Inicialización de la grúa con sus parámetros iniciales. La base empieza en el centro del mundo, mirando hacia adelante, sin velocidad. La cabina empieza sin rotación, y la articulación empieza con un ángulo de elevación de 30 grados para que el brazo esté levantado inicialmente. El brazo empieza con una extensión de 3 unidades.
 	miGrua.base.posicion = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -532,7 +623,7 @@ int main() {
 
 		// Camara exterior con inclinación (~30 grados desde la vertical) para ver todo el escenario
 		else if (camaraActual == CAM_CENITAL) {
-			eye = glm::vec3(0.0f, 30.0f, 17.0f);
+			eye = glm::vec3(0.0f, 45.0f, 25.0f);
 			center = glm::vec3(0.0f, 0.0f, 0.0f);
 		}
 
@@ -558,6 +649,8 @@ int main() {
 	glDeleteBuffers(1, &sueloVBO);
 	glDeleteVertexArrays(1, &cuboVAO);
 	glDeleteBuffers(1, &cuboVBO);
+	glDeleteVertexArrays(1, &bordeVAO);
+	glDeleteBuffers(1, &bordeVBO);
 	glfwTerminate();
 
 	return 0;

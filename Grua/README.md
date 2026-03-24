@@ -7,10 +7,11 @@
 ## Características Implementadas
 
 * **Renderizado Moderno:** Uso de *Programmable Pipeline* (Vertex y Fragment shaders). Renderizado de color plano (*Flat Shading*) mediante color uniforme por pieza.
-* **Gestión de Memoria GPU:** Los vértices del cubo y la baldosa se envían una sola vez a la VRAM mediante VBOs y VAOs, reutilizándolos para todas las piezas de la grúa y todas las baldosas del suelo.
+* **Gestión de Memoria GPU:** Los vértices del cubo y la baldosa se envían una sola vez a la VRAM mediante VBOs y VAOs, reutilizándolos para todas las piezas de la grúa, las ruedas y todas las baldosas del suelo.
 * **5 Estructuras Jerárquicas:** El sistema mecánico se modela con las estructuras `Base`, `Cabina`, `Articulacion`, `Brazo` y `GruaCamion` (que agrupa las cuatro anteriores). Cada una almacena sus propios parámetros de transformación (posición, ángulos, velocidades, extensión).
 * **Transformaciones Jerárquicas:** Las matrices de modelo se construyen de forma acumulativa. La cabina hereda la transformación de la base, la articulación hereda la de la cabina, y el brazo hereda la de la articulación, formando una cadena padre-hijo completa.
-* **Física de Conducción:** El movimiento del vehículo es progresivo. La aceleración (W) y el freno/marcha atrás (X) modifican la velocidad gradualmente. La fricción detiene el vehículo de forma natural cuando no se pulsa ninguna tecla. La dirección (A/D) solo actúa si el vehículo está en movimiento y su sentido se invierte al ir en marcha atrás.
+* **4 Ruedas con Física Visual:** El vehículo tiene 4 ruedas (cubos con borde negro) posicionadas en las esquinas del chasis, sobre las que se apoya la grúa. Las ruedas ruedan proporcionalmente a la velocidad del vehículo (rodadura realista basada en el radio). Las ruedas delanteras giran visualmente al pulsar A/D para indicar la dirección, incluso con el vehículo parado.
+* **Física de Conducción:** El movimiento del vehículo es progresivo. La aceleración (W) y el freno/marcha atrás (X) modifican la velocidad gradualmente. La fricción detiene el vehículo de forma natural cuando no se pulsa ninguna tecla. La dirección (A/D) solo actúa sobre la orientación del vehículo si está en movimiento, y su sentido se invierte al ir en marcha atrás.
 * **Controles de la Grúa:** La cabina giratoria (Q/E), el ángulo de elevación del brazo (R/F) y la extensión del brazo (T/G) se controlan de forma independiente. La articulación (naranja) tiene una colisión dura contra la base/chasis (amarillo): si toca el volumen del chasis, el movimiento se detiene (sin rebotes), evitando penetraciones. La extensión está limitada entre 2.0 y 8.0 unidades.
 * **Suelo Modular:** El escenario se renderiza como un mosaico de 41×41 baldosas generado mediante bucles, con alternancia de colores gris claro y gris oscuro para crear un efecto de tablero de ajedrez.
 * **Límite de Área de Conducción:** El vehículo no puede salirse del área del suelo. Al alcanzar el borde, la posición se restringe y la velocidad se anula para evitar que el vehículo se quede empujando contra el límite.
@@ -25,8 +26,8 @@
 | :--- | :--- |
 | `W` | **Acelerar** hacia delante (aceleración progresiva). |
 | `X` | **Frenar / Marcha atrás** (deceleración progresiva). |
-| `A` | **Girar a la izquierda** (solo si el vehículo está en movimiento). |
-| `D` | **Girar a la derecha** (solo si el vehículo está en movimiento). |
+| `A` | **Girar a la izquierda** (orienta el vehículo solo en movimiento; las ruedas delanteras giran siempre). |
+| `D` | **Girar a la derecha** (orienta el vehículo solo en movimiento; las ruedas delanteras giran siempre). |
 | `Q` | **Rotar cabina** en sentido antihorario. |
 | `E` | **Rotar cabina** en sentido horario. |
 | `R` | **Elevar brazo** (aumentar ángulo de articulación). |

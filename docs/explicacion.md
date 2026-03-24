@@ -214,11 +214,15 @@ struct Objeto {
    - actualiza glViewport al redimensionar ventana y guarda las nuevas dimensiones para recalcular el aspect ratio de la proyección; tras cada resize la matriz `projection` usa el aspect actualizado (ver mainSistemaSolar.cpp:15-17, 88-93, 327-329).
 
 - key_callback:
-  - gestiona cámaras con teclas 0..4 y ESC.
+  - gestiona cámaras con teclas 0..5 y ESC.
+  - la tecla 5 activa/cicla el modo telescopio (cada pulsación avanza al siguiente objetivo).
+
+- processInput (llamada cada frame):
+  - lee flechas del teclado (←↑↓→) de forma continua y acumula rotaciones en `rotationX`/`rotationY`.
 
 Justificación:
 
-Separar callbacks del bucle principal mantiene el flujo limpio y permite explicar interacción y render por separado en la defensa.
+Separar callbacks del bucle principal mantiene el flujo limpio y permite explicar interacción y render por separado en la defensa. La entrada continua de flechas se procesa aparte con `processInput` porque GLFW_PRESS en key_callback solo detecta el evento puntual, no la pulsación sostenida.
 
 ```cpp
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -229,7 +233,19 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
       if (key == GLFW_KEY_2) camaraActual = CAM_TIERRA_DESDE_LUNA;
       if (key == GLFW_KEY_3) camaraActual = CAM_ISS_DESDE_TIERRA;
       if (key == GLFW_KEY_4) camaraActual = CAM_SATURNO;
+      if (key == GLFW_KEY_5) { // Telescopio: activa o cicla objetivo
+         if (camaraActual == CAM_TELESCOPIO) telescopioIdx++;
+         else camaraActual = CAM_TELESCOPIO;
+      }
    }
+}
+
+void processInput(GLFWwindow* window) {
+   float speed = 0.003f;
+   if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    rotationX -= speed;
+   if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  rotationX += speed;
+   if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  rotationY -= speed;
+   if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) rotationY += speed;
 }
 ```
 
@@ -361,21 +377,29 @@ m = glm::rotate(m, glm::radians(27.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
 Modo de cámara seleccionado por enum CameraMode:
 
-- CAM_SOL
-- CAM_MARTE
-- CAM_TIERRA_DESDE_LUNA
-- CAM_ISS_DESDE_TIERRA
-- CAM_SATURNO
+- CAM_SOL (tecla 0): vista general del sistema.
+- CAM_MARTE (tecla 1): seguimiento de Marte.
+- CAM_TIERRA_DESDE_LUNA (tecla 2): vista desde la Luna enfocando la Tierra.
+- CAM_ISS_DESDE_TIERRA (tecla 3): vista desde la Tierra enfocando la ISS.
+- CAM_SATURNO (tecla 4): vista lateral elevada para apreciar los anillos con su inclinación axial.
+- CAM_TELESCOPIO (tecla 5): cámara posicionada en la Tierra que apunta al objetivo actual. Cada pulsación sucesiva de la tecla 5 cicla entre los 10 objetivos disponibles (Sol, Mercurio, Venus, Marte, Júpiter, Saturno, Urano, Neptuno, Luna, ISS) usando un índice `telescopioIdx` y un vector `objetivosTelescopio`.
+
+Rotación manual con flechas:
+
+- En cualquier modo de cámara, las flechas del teclado (←↑↓→) permiten rotar la vista.
+- Se acumulan dos ángulos globales (`rotationX`, `rotationY`) incrementados en `processInput()` cada frame.
+- Después de calcular `view` con `glm::lookAt`, se aplican rotaciones adicionales sobre los ejes X e Y de la cámara.
 
 En el loop, según el modo:
 
 - se define eye y center,
 - se calcula view con glm::lookAt,
-- projection con glm::perspective.
+- se aplican rotaciones manuales sobre view,
+- projection con glm::perspective (aspect ratio recalculado tras resize).
 
 Justificación:
 
-Las cámaras temáticas facilitan demostrar jerarquía espacial y relación entre cuerpos, que es parte central de la práctica.
+Las cámaras temáticas facilitan demostrar jerarquía espacial y relación entre cuerpos, que es parte central de la práctica. El modo telescopio permite explorar todo el sistema desde un punto fijo. La rotación manual con flechas añade interactividad sin depender de un modo de cámara concreto.
 
 ```cpp
 switch (camaraActual) {
@@ -383,13 +407,18 @@ case CAM_SOL:
    eye = glm::vec3(0.0f, 100.0f, 120.0f);
    center = ptrSol->getPosicionGlobal();
    break;
-case CAM_MARTE:
-   eye = ptrMarte->getPosicionGlobal() + glm::vec3(0.0f, 3.0f, 5.0f);
-   center = ptrMarte->getPosicionGlobal();
+case CAM_TELESCOPIO:
+   telescopioIdx = telescopioIdx % (int)objetivosTelescopio.size();
+   eye = ptrTierra->getPosicionGlobal();
+   center = objetivosTelescopio[telescopioIdx]->getPosicionGlobal();
    break;
 }
 view = glm::lookAt(eye, center, up);
-projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
+// Rotación manual con flechas
+view = glm::rotate(view, rotationX, glm::vec3(1.0f, 0.0f, 0.0f));
+view = glm::rotate(view, rotationY, glm::vec3(0.0f, 1.0f, 0.0f));
+float aspect = (SCR_HEIGHT != 0) ? (float)SCR_WIDTH / (float)SCR_HEIGHT : 1.0f;
+projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
 ```
 
 ### 4.7 Bucle principal
@@ -397,14 +426,15 @@ projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR
 Secuencia de cada frame:
 
 1. calcular deltaTime,
-2. limpiar color+depth,
-3. glUseProgram,
-4. actualizar todos los objetos,
-5. calcular view/projection según cámara,
-6. enviar uniforms view/projection,
-7. dibujar objetos,
-8. dibujar anillos de Saturno,
-9. swap y poll events.
+2. procesar entrada de flechas (processInput),
+3. limpiar color+depth,
+4. glUseProgram,
+5. actualizar todos los objetos,
+6. calcular view/projection según cámara + rotación manual,
+7. enviar uniforms view/projection,
+8. dibujar objetos,
+9. dibujar anillos de Saturno,
+10. swap y poll events.
 
 Al terminar:
 
@@ -416,6 +446,7 @@ while (!glfwWindowShouldClose(window)) {
    float currentFrame = glfwGetTime();
    deltaTime = currentFrame - lastFrame;
    lastFrame = currentFrame;
+   processInput(window);
 
    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
    glUseProgram(shaderProgram);
@@ -437,22 +468,25 @@ Archivo principal: mainGrua.cpp
 
 - vertices_baldosa: 2 triángulos (suelo modular por instancia).
 - vertices_cubo: 36 vértices (6 caras).
+- vertices_borde_rueda: 8 vértices (contorno cuadrado de las caras frontal y trasera de cada rueda, dibujado con GL_LINE_LOOP).
 
 Buffers:
 
 - sueloVAO/sueloVBO
 - cuboVAO/cuboVBO
+- bordeVAO/bordeVBO (contorno de las ruedas)
 
 Funciones:
 
 - prepararSuelo
 - prepararCubo
+- prepararBorde
 
-Ambas usan layout location 0 con posición vec3.
+Todas usan layout location 0 con posición vec3.
 
 Justificación:
 
-Con una sola malla de cubo, escalada por matriz, se construyen todas las piezas de la grúa de forma jerárquica y eficiente.
+Con una sola malla de cubo, escalada por matriz, se construyen todas las piezas de la grúa y las 4 ruedas de forma jerárquica y eficiente. El borde de las ruedas permite visualizar la rodadura.
 
 ```cpp
 void prepararCubo() {
@@ -473,6 +507,8 @@ Modelo jerárquico por structs:
 - Base:
   - posición, orientación, velocidad,
   - parámetros de aceleración, frenado, fricción, límite velocidad, giro,
+  - anguloRodadura (ángulo acumulado de giro de las ruedas por rodadura),
+  - anguloVolante (ángulo de dirección visual de las ruedas delanteras),
   - modelMatrix.
 
 - Cabina:
@@ -522,10 +558,18 @@ Función dibujarPieza:
 - envía uniforms,
 - dibuja el cubo base.
 
+Función dibujarRueda:
+
+- recibe matriz de la base, posición de la rueda, ángulo de rodadura, ángulo de dirección y color,
+- aplica transformaciones: traslación a posición, giro de dirección (Y), orientación lateral (90° en Y), rodadura (Z) y escala (1.2 en XY, 0.35 en Z),
+- dibuja el cubo reutilizando cuboVAO,
+- después dibuja el contorno cuadrado (bordeVAO) en negro con GL_LINE_LOOP para visualizar la rodadura.
+
 Función dibujarGrua:
 
 - llama 4 veces a dibujarPieza con modelMatrix de cada pieza,
-- cada llamada usa escala distinta para forma final.
+- cada llamada usa escala distinta para forma final,
+- llama 4 veces a dibujarRueda para las ruedas en las esquinas del chasis: las delanteras reciben el ángulo de dirección (anguloVolante), las traseras reciben 0.
 
 ```cpp
 void dibujarGrua(GruaCamion& grua, GLuint shader) {
@@ -533,6 +577,11 @@ void dibujarGrua(GruaCamion& grua, GLuint shader) {
    dibujarPieza(grua.cabina.modelMatrix, glm::vec3(1.5f), glm::vec3(0.3f), shader);
    dibujarPieza(grua.articulacion.modelMatrix, glm::vec3(0.5f, 2.0f, 0.5f), glm::vec3(0.9f, 0.5f, 0.1f), shader);
    dibujarPieza(grua.brazo.modelMatrix, glm::vec3(0.3f, grua.brazo.extension, 0.3f), glm::vec3(0.7f), shader);
+   // 4 ruedas: delanteras con dirección, traseras solo rodadura
+   dibujarRueda(grua.base.modelMatrix, glm::vec3(-1.3f, -0.5f, 1.8f), grua.base.anguloRodadura, grua.base.anguloVolante, colorRueda, shader);
+   dibujarRueda(grua.base.modelMatrix, glm::vec3( 1.3f, -0.5f, 1.8f), grua.base.anguloRodadura, grua.base.anguloVolante, colorRueda, shader);
+   dibujarRueda(grua.base.modelMatrix, glm::vec3(-1.3f, -0.5f,-1.8f), grua.base.anguloRodadura, 0.0f, colorRueda, shader);
+   dibujarRueda(grua.base.modelMatrix, glm::vec3( 1.3f, -0.5f,-1.8f), grua.base.anguloRodadura, 0.0f, colorRueda, shader);
 }
 ```
 
@@ -548,23 +597,25 @@ Controles y comportamiento:
 4. Clamp de velocidad:
    - máximo hacia delante = velMaxima,
    - máximo hacia atrás = -velMaxima/2.
-5. A/D (giro): solo si |velocidad| > umbral; invierte sentido de giro si marcha atrás.
-6. Avance real en mundo:
+5. A/D (giro): solo actúa sobre la orientación del vehículo si |velocidad| > umbral; invierte sentido de giro si marcha atrás.
+6. Rodadura de las ruedas: anguloRodadura se incrementa proporcionalmente a velocidad/radio (radio visual = 0.6). Convierte desplazamiento lineal a rotación angular.
+7. Dirección visual de las ruedas delanteras: anguloVolante interpola suavemente hacia ±25° cuando se pulsa A/D (independientemente de si el vehículo se mueve), y vuelve a 0° al soltar.
+8. Avance real en mundo:
    - usa orientación en radianes,
    - x += sin(yaw) * v * dt,
    - z += cos(yaw) * v * dt.
-7. Colisión con límites de suelo:
+9. Colisión con límites de suelo:
    - clamp en rango seguro,
    - fuerza velocidad a cero al tocar borde.
-8. Controles de mecanismo:
+10. Controles de mecanismo:
    - Q/E: giro de cabina,
    - R/F: elevación articulación,
    - T/G: extensión/retracción brazo.
-9. Colisión dura articulación-base:
+11. Colisión dura articulación-base:
    - la pieza naranja (articulación) se modela como un segmento con radio de seguridad,
    - se proyecta al espacio del chasis amarillo y se testea contra su AABB,
    - si toca, se detiene el movimiento (sin rebote) tanto al subir/bajar como al extender/recoger.
-10. Clamp de extensión del brazo: [2.0, 8.0].
+12. Clamp de extensión del brazo: [2.0, 8.0].
 
 Justificación física:
 
@@ -583,6 +634,13 @@ if (grua.base.velocidadActual > 0.0f) grua.base.velocidadActual -= grua.base.fri
 float radianes = glm::radians(grua.base.orientacion);
 grua.base.posicion.x += sin(radianes) * grua.base.velocidadActual * dt;
 grua.base.posicion.z += cos(radianes) * grua.base.velocidadActual * dt;
+
+// Rodadura de las ruedas (proporcional a velocidad / radio)
+grua.base.anguloRodadura += (grua.base.velocidadActual * dt / 0.6f) * (180.0f / 3.14159f);
+
+// Dirección visual de las ruedas delanteras (interpola hacia ±25° o 0°)
+if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) objetivo = 25.0f;
+if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) objetivo = -25.0f;
 ```
 
 ### 5.5 Transformaciones jerárquicas
@@ -593,7 +651,7 @@ Orden de propagación:
 
 1. Base:
    - translate a posición global,
-   - elevación para apoyar sobre suelo,
+   - elevación de 1.1 unidades para que la grúa se apoye sobre las ruedas (las ruedas, a -0.5 de la base, quedan con su centro a y=0.6 y su borde inferior en y=0, tocando el suelo),
    - rotación por orientación.
 
 2. Cabina:
@@ -651,7 +709,7 @@ if (camaraActual == CAM_TERCERA_PERSONA) {
    eye = miGrua.base.posicion - forward * 10.0f + glm::vec3(0.0f, 5.0f, 0.0f);
    center = miGrua.base.posicion + glm::vec3(0.0f, 2.0f, 0.0f);
 } else if (camaraActual == CAM_CENITAL) {
-   eye = glm::vec3(0.0f, 30.0f, 17.0f);
+   eye = glm::vec3(0.0f, 45.0f, 25.0f);
    center = glm::vec3(0.0f, 0.0f, 0.0f);
 }
 ```
