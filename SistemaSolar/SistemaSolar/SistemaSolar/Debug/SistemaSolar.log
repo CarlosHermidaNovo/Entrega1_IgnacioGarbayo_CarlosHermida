@@ -1,4 +1,4 @@
 ﻿  mainSistemaSolar.cpp
-C:\Users\charl\OneDrive\Escritorio\USC\sexto\COGA\2026\Entrega1_IgnacioGarbayo_CarlosHermida\SistemaSolar\SistemaSolar\SistemaSolar\mainSistemaSolar.cpp(366,22): warning C4244: 'inicializando': conversión de 'double' a 'float'; posible pérdida de datos
+C:\Users\charl\OneDrive\Escritorio\USC\sexto\COGA\2026\Entrega1_IgnacioGarbayo_CarlosHermida\SistemaSolar\SistemaSolar\SistemaSolar\mainSistemaSolar.cpp(426,22): warning C4244: 'inicializando': conversión de 'double' a 'float'; posible pérdida de datos
 LINK : warning LNK4098: la biblioteca predeterminada'MSVCRT' entra en conflicto con otras bibliotecas; use la biblioteca /NODEFAULTLIB:biblioteca
   SistemaSolar.vcxproj -> C:\Users\charl\OneDrive\Escritorio\USC\sexto\COGA\2026\Entrega1_IgnacioGarbayo_CarlosHermida\SistemaSolar\SistemaSolar\Debug\SistemaSolar.exe

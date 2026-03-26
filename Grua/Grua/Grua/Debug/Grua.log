@@ -1,3 +1,3 @@
 ﻿  mainGrua.cpp
-C:\Users\charl\OneDrive\Escritorio\USC\sexto\COGA\2026\Entrega1_IgnacioGarbayo_CarlosHermida\Grua\Grua\Grua\mainGrua.cpp(348,22): warning C4244: 'inicializando': conversión de 'double' a 'float'; posible pérdida de datos
+C:\Users\charl\OneDrive\Escritorio\USC\sexto\COGA\2026\Entrega1_IgnacioGarbayo_CarlosHermida\Grua\Grua\Grua\mainGrua.cpp(594,22): warning C4244: 'inicializando': conversión de 'double' a 'float'; posible pérdida de datos
   Grua.vcxproj -> C:\Users\charl\OneDrive\Escritorio\USC\sexto\COGA\2026\Entrega1_IgnacioGarbayo_CarlosHermida\Grua\Grua\Debug\Grua.exe

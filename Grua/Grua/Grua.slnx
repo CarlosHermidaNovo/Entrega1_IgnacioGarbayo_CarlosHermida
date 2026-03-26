@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="Grua/Grua.vcxproj" />
+  <Project Path="Grua/Grua.vcxproj" Id="4213af73-cdeb-4126-a56d-6e5dd936c975" />
 </Solution>
