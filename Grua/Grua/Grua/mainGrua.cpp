@@ -277,10 +277,10 @@ void dibujarRueda(glm::mat4 matrizBase, glm::vec3 posRueda, float anguloRodadura
 
 // Dibuja la grúa completa llamando a dibujarPieza para cada una de sus partes, aplicando las transformaciones jerárquicas correspondientes para posicionarlas correctamente en el mundo.
 void dibujarGrua(GruaCamion& grua, GLuint shader) {
-	dibujarPieza(grua.base.modelMatrix, glm::vec3(2.5f, 1.0f, 5.0f), glm::vec3(0.9f, 0.8f, 0.1f), shader);
-	dibujarPieza(grua.cabina.modelMatrix, glm::vec3(1.5f, 1.5f, 1.5f), glm::vec3(0.3f, 0.3f, 0.3f), shader);
-	dibujarPieza(grua.articulacion.modelMatrix, glm::vec3(0.5f, 2.0f, 0.5f), glm::vec3(0.9f, 0.5f, 0.1f), shader);
-	dibujarPieza(grua.brazo.modelMatrix, glm::vec3(0.3f, grua.brazo.extension, 0.3f), glm::vec3(0.7f, 0.7f, 0.7f), shader);
+	dibujarPieza(grua.base.modelMatrix, glm::vec3(2.5f, 1.0f, 5.0f), glm::vec3(0.15f, 0.15f, 0.15f), shader);
+	dibujarPieza(grua.cabina.modelMatrix, glm::vec3(1.5f, 1.5f, 1.5f), glm::vec3(0.9f, 0.7f, 0.1f), shader);
+	dibujarPieza(grua.articulacion.modelMatrix, glm::vec3(0.5f, 2.0f, 0.5f), glm::vec3(0.9f, 0.7f, 0.1f), shader);
+	dibujarPieza(grua.brazo.modelMatrix, glm::vec3(0.3f, grua.brazo.extension, 0.3f), glm::vec3(0.8f, 0.8f, 0.8f), shader);
 
 	// Dibujar las 4 ruedas (cubos con borde) en las esquinas de la base
 	glm::vec3 colorRueda(0.9f, 0.1f, 0.1f); // Rojo llamativo
