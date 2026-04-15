@@ -356,7 +356,7 @@ bool brazoColisionaConCabina(const GruaCamion& grua, float anguloElevacionZ, flo
 	glm::vec3 p0ArticW = glm::vec3(articModel * glm::vec4(0.0f, -1.0f, 0.0f, 1.0f));
 	glm::vec3 p1ArticW = glm::vec3(articModel * glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
 
-	// Solo bloqueamos contra la base/chasis (amarillo) como solicitaste.
+	// Solo bloqueamos contra la base/chasis (amarillo).
 	const glm::vec3 medioBase(1.25f, 0.5f, 2.5f);
 	const glm::vec3 bminBaseArtic = -medioBase - glm::vec3(radioArticulacion);
 	const glm::vec3 bmaxBaseArtic = medioBase + glm::vec3(radioArticulacion);
@@ -461,22 +461,40 @@ void actualizarFisicas(GruaCamion& grua, float dt, GLFWwindow* window) {
 	}
 
 	// Para la extension del brazo, se hace un proceso similar al de la elevacion, pero en lugar de limitar el angulo, se limita la extension a un rango determinado (por ejemplo, entre 2.0f y 8.0f).
+
+	// Cuanto queremos extender o recoger el brazo en este frame (en unidades de longitud)
 	float deltaExtension = 0.0f;
+	// T extiende el brazo: suma velocidad * tiempo transcurrido para que sea independiente de los FPS
 	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) deltaExtension += 2.0f * dt;
+	// G recoge el brazo: resta velocidad * tiempo transcurrido
 	if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) deltaExtension -= 2.0f * dt;
+
+	// Solo procesamos si hay movimiento real (evita trabajo innecesario)
 	if (deltaExtension != 0.0f) {
+		// Extraemos el signo del delta para saber si extendemos (+1) o recogemos (-1)
 		float signo = (deltaExtension > 0.0f) ? 1.0f : -1.0f;
+		// Cantidad de longitud que aun queda por aplicar en este frame
 		float restante = fabs(deltaExtension);
+		// Maxima longitud que avanzamos por iteracion: subdivide el movimiento para deteccion de colision
 		const float pasoExtension = 0.05f;
 		while (restante > 0.0f) {
+			// Este paso es el minimo entre lo que queda y el paso maximo permitido
 			float avance = (restante > pasoExtension) ? pasoExtension : restante;
+			// Extension candidata: la extension actual mas el incremento en la direccion correcta
 			float extensionCandidata = grua.brazo.extension + signo * avance;
+			// el brazo no puede ser mas corto que 2.0 unidades
 			if (extensionCandidata < 2.0f) extensionCandidata = 2.0f;
+			// el brazo no puede ser mas largo que 8.0 unidades
 			if (extensionCandidata > 8.0f) extensionCandidata = 8.0f;
+			// Comprobamos si con esta extension el brazo chocaria con la cabina
 			bool colisionCandidata = brazoColisionaConCabina(grua, grua.articulacion.anguloElevacionZ, extensionCandidata);
+			// Si hay colision, paramos el bucle: no aplicamos mas extension
 			if (colisionCandidata) break;
+			// Si no hay movimiento, salimos para evitar bucle infinito
 			if (fabs(extensionCandidata - grua.brazo.extension) < 1e-6f) break;
+			// Guardamos la nueva extension valida
 			grua.brazo.extension = extensionCandidata;
+			// Descontamos lo que acabamos de avanzar de lo que quedaba por aplicar
 			restante -= avance;
 		}
 	}
